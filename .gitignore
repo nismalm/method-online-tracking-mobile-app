@@ -34,6 +34,8 @@ local.properties
 *.keystore
 !debug.keystore
 .kotlin/
+android/.gradle
+android/app/build
 
 # node.js
 #
@@ -58,6 +60,8 @@ yarn-error.log
 
 # Ruby / CocoaPods
 **/Pods/
+ios/Pods/
+ios/build/
 /vendor/bundle/
 
 # Temporary files created by Metro to check the health of the file watcher

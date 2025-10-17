@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "967857012017",
+    "project_id": "method-online-tracker",
+    "storage_bucket": "method-online-tracker.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:967857012017:android:94d7c7979ea50826cc0410",
+        "android_client_info": {
+          "package_name": "com.methodonlinetracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqeZuMjNKjuUTkDsqsUC9A-v9N5cB3vlc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
