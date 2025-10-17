@@ -21,7 +21,7 @@ const LoginScreen = () => {
 
       <View className="flex-1 justify-center px-6">
 
-        <View className="items-center mb-12">
+        <View className="items-center mb-2">
           <Image
             source={require('../../assets/logo/method_logo_lg.png')}
             className="w-64 h-64"
@@ -35,8 +35,9 @@ const LoginScreen = () => {
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             placeholder="Enter your mobile number"
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
             leftIcon={<PhoneIcon width={20} height={20} stroke="#666666" />}
+            prefix="+91"
           />
         </View>
 

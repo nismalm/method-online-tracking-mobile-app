@@ -14,6 +14,7 @@ const TextInput = ({
   editable = true,
   leftIcon,
   rightIcon,
+  prefix,
   className = '',
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -33,8 +34,13 @@ const TextInput = ({
           {label}
         </Text>
       )}
-      <View className={`flex-row items-center rounded-xl px-4 min-h-[48px] ${getBorderClass()} ${bgClass}`}>
+      <View className={`flex-row items-center rounded-xl px-4 h-14 ${getBorderClass()} ${bgClass}`}>
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
+        {prefix && (
+          <Text className="text-black text-base font-barlow mr-2">
+            {prefix}
+          </Text>
+        )}
         <RNTextInput
           value={value}
           onChangeText={onChangeText}
@@ -47,7 +53,8 @@ const TextInput = ({
           editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="flex-1 py-3 text-black text-base font-barlow"
+          className="flex-1 text-black text-base font-barlow"
+          style={{lineHeight: 20, paddingVertical: 0}}
         />
         {rightIcon && <View className="ml-3">{rightIcon}</View>}
       </View>
