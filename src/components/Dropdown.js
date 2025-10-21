@@ -30,7 +30,7 @@ const Dropdown = ({
     selectedText: { fontSize: 16, color: '#000000', fontFamily: 'Barlow-Regular' },
     icon: { width: 20, height: 20 },
     inputSearch: {
-      height: 40, fontSize: 16, borderRadius: 8, paddingHorizontal: 12,
+      height: 40, fontSize: 16, borderRadius: 8, paddingHorizontal: 0,
       borderWidth: 0, borderColor: '#e5e5e5', color: '#000000',
       fontFamily: 'Barlow-Regular', marginHorizontal: 12, marginVertical: 8,
       backgroundColor: '#ffffff'

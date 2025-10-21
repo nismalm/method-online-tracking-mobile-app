@@ -1,22 +1,22 @@
-import React, {useState, useEffect} from 'react';
-import {View, ActivityIndicator, Text} from 'react-native';
+import React from 'react';
+import {View, ActivityIndicator, Text, LogBox} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
 import LoginScreen from './src/screens/LoginScreen';
-import AuthService from './src/services/authService';
+import BottomTabNavigator from './src/navigation/BottomTabNavigator';
+import {AuthProvider, useAuth} from './src/context/AuthContext';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Ignore specific warnings in development
+LogBox.ignoreLogs([
+  'auth/email-already-in-use',
+  'auth/invalid-credential',
+  'firestore/failed-precondition',
+  'Setting a timer', // Firebase real-time listeners
+  'VirtualizedLists should never be nested', // If any list nesting occurs
+]);
 
-  useEffect(() => {
-    // Listen to authentication state changes
-    const unsubscribe = AuthService.onAuthStateChanged((authUser) => {
-      setUser(authUser);
-      setLoading(false);
-    });
-
-    // Cleanup subscription on unmount
-    return unsubscribe;
-  }, []);
+function AppContent() {
+  const {user, userProfile, loading} = useAuth();
 
   // Show loading screen while checking auth state
   if (loading) {
@@ -28,26 +28,30 @@ function App() {
     );
   }
 
-  // Show LoginScreen if no user, else show HomeScreen
-  if (!user) {
+  // Show LoginScreen if no user, no profile, or user is inactive
+  if (!user || !userProfile) {
     return <LoginScreen />;
   }
 
-  // Temporary home screen (replace with your actual HomeScreen component)
+  // Additional check: if user is inactive and not SuperAdmin, show login screen
+  if (userProfile.status !== 'active' && userProfile.role !== 'SuperAdmin') {
+    return <LoginScreen />;
+  }
+
   return (
-    <View className="flex-1 bg-white items-center justify-center px-6">
-      <Text className="text-2xl font-barlow-bold mb-4">Welcome!</Text>
-      <Text className="text-base font-barlow text-gray-600 mb-8 text-center">
-        You are logged in as:{'\n'}{user.email}
-      </Text>
-      <Text
-        className="text-blue-600 font-barlow-medium"
-        onPress={async () => {
-          await AuthService.signOut();
-        }}>
-        Sign Out
-      </Text>
-    </View>
+    <NavigationContainer>
+      <BottomTabNavigator />
+    </NavigationContainer>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -16,28 +16,33 @@ const TextInput = ({
   rightIcon,
   prefix,
   className = '',
+  variant = 'default', // 'default' or 'search'
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   const getBorderClass = () => {
-    if (error) return 'border-2 border-black';
-    if (isFocused) return 'border-2 border-black';
+    if (variant === 'search') return ''; // No border for search variant
+    if (error) return 'border-2 border-brand-darkest';
+    if (isFocused) return 'border-2 border-brand-darkest';
     return 'border border-gray-200';
   };
 
-  const bgClass = editable ? 'bg-white' : 'bg-gray-50';
+  const getBgClass = () => {
+    if (variant === 'search') return 'bg-[#f9f9f9]';
+    return editable ? 'bg-white' : 'bg-gray-50';
+  };
 
   return (
     <View className={className}>
       {label && (
-        <Text className="text-black text-sm font-barlow-semibold mb-2">
+        <Text className="text-brand-darkest text-sm font-barlow-semibold mb-2">
           {label}
         </Text>
       )}
-      <View className={`flex-row items-center rounded-xl px-4 h-14 ${getBorderClass()} ${bgClass}`}>
+      <View className={`flex-row items-center rounded-xl px-4 ${variant === 'search' ? 'py-3' : 'h-14'} ${getBorderClass()} ${getBgClass()}`}>
         {leftIcon && <View className="mr-3">{leftIcon}</View>}
         {prefix && (
-          <Text className="text-black text-base font-barlow mr-2">
+          <Text className="text-brand-darkest text-base font-barlow mr-2">
             {prefix}
           </Text>
         )}
@@ -53,13 +58,13 @@ const TextInput = ({
           editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="flex-1 text-black text-base font-barlow"
+          className="flex-1 text-brand-darkest text-base font-barlow"
           style={{lineHeight: 20, paddingVertical: 0}}
         />
         {rightIcon && <View className="ml-3">{rightIcon}</View>}
       </View>
       {error && (
-        <Text className="text-black text-xs mt-1.5 font-barlow-medium">
+        <Text className="text-brand-darkest text-xs mt-1.5 font-barlow-medium">
           ⚠️ {error}
         </Text>
       )}

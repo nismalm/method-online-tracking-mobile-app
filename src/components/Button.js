@@ -1,5 +1,5 @@
 import React from 'react';
-import {TouchableOpacity, Text, ActivityIndicator, View} from 'react-native';
+import {TouchableOpacity, Text, ActivityIndicator} from 'react-native';
 
 const Button = ({
   title,

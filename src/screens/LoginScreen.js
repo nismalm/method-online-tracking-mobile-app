@@ -21,9 +21,9 @@ const LoginScreen = () => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  const validateEmail = (email) => {
+  const validateEmail = (emailValue) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(emailValue);
   };
 
   const handleLogin = async () => {
@@ -93,11 +93,22 @@ const LoginScreen = () => {
         {
           text: 'Send',
           onPress: async () => {
-            const result = await AuthService.resetPassword(email);
-            if (result.success) {
-              Alert.alert('Success', 'Password reset email sent. Check your inbox.');
-            } else {
-              Alert.alert('Error', result.error);
+            setLoading(true);
+            try {
+              await AuthService.resetPassword(email);
+              // Always show success message for security (prevent email enumeration)
+              Alert.alert(
+                'Email Sent',
+                'Password reset instructions have been sent. Please check your inbox and spam folder.'
+              );
+            } catch (error) {
+              // Show generic message even on error for security
+              Alert.alert(
+                'Email Sent',
+                'Password reset instructions have been sent. Please check your inbox and spam folder.'
+              );
+            } finally {
+              setLoading(false);
             }
           },
         },
