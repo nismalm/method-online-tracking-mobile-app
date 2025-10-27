@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   successIcon: {
-    backgroundColor: COLORS.dark,
+    backgroundColor: COLORS.brandDark,
     borderRadius: 32,
     width: 64,
     height: 64,
@@ -910,7 +910,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   successCheckmark: {
-    color: COLORS.secondary,
+    color: COLORS.brandSecondary,
     fontSize: FONT_SIZES['3xl'],
     fontFamily: FONTS.bold,
   },
@@ -951,13 +951,13 @@ const styles = StyleSheet.create({
   },
   copyButton: {
     marginLeft: 8,
-    backgroundColor: COLORS.dark,
+    backgroundColor: COLORS.brandDark,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   copyButtonText: {
-    color: COLORS.secondary,
+    color: COLORS.brandSecondary,
     fontSize: FONT_SIZES.xs,
     fontFamily: FONTS.bold,
   },

@@ -190,7 +190,7 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Enter current password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
+                  leftIcon={<LockIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={currentPasswordError}
                   editable={!loading}
                 />
@@ -207,7 +207,7 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Enter new password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
+                  leftIcon={<LockIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={newPasswordError}
                   editable={!loading}
                 />
@@ -227,7 +227,7 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Re-enter new password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
+                  leftIcon={<LockIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={confirmPasswordError}
                   editable={!loading}
                 />

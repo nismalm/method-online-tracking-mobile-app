@@ -34,6 +34,7 @@ export const COLORS = {
   red700: '#b91c1c',
   green500: '#22c55e',
   green600: '#16a34a',
+  blue50: '#dbeafe',
   blue500: '#3b82f6',
   blue600: '#2563eb',
 };
