@@ -64,6 +64,9 @@ ios/Pods/
 ios/build/
 /vendor/bundle/
 
+# Hermes Engine (build artifacts)
+ios/hermes-engine/
+
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
 

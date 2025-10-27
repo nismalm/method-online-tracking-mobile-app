@@ -1,7 +1,8 @@
 import React, {useCallback, useMemo} from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {View, Text} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
 import {useAuth} from '../context/AuthContext';
+import {COLORS, FONTS, BORDER_RADIUS} from '../constants/theme';
 
 // Import custom icons
 import HomeIcon from '../../assets/icons/homeIcon';
@@ -17,7 +18,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-const iconColor = '#040404';
+const iconColor = COLORS.brandDarkest;
 const iconSize = 28;
 
 const getTabIcon = (routeName, focused) => {
@@ -38,18 +39,15 @@ const getTabIcon = (routeName, focused) => {
 // Memoized to prevent unnecessary re-renders
 const TabIcon = React.memo(({focused, routeName}) => {
   return (
-    <View className="items-center justify-center w-full">
+    <View style={styles.tabIconContainer}>
       <View
-        className={`items-center justify-center rounded-xl w-14 h-14 ${
-          focused ? 'bg-brand-primary' : 'bg-transparent'
-        }`}>
+        style={[
+          styles.iconWrapper,
+          focused && styles.iconWrapperFocused,
+        ]}>
         {getTabIcon(routeName, focused)}
       </View>
-      <Text
-        className="font-barlow-semibold text-[10px] mt-1.5 text-center text-brand-darkest"
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.8}>
+      <Text style={styles.tabLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
         {routeName}
       </Text>
     </View>
@@ -73,9 +71,9 @@ const BottomTabNavigator = () => {
     headerShown: false,
     tabBarLabel: () => null,
     tabBarStyle: {
-      backgroundColor: '#ffffff',
+      backgroundColor: COLORS.white,
       borderTopWidth: 1,
-      borderTopColor: '#e5e5e5',
+      borderTopColor: COLORS.brandBorder,
       height: 90,
       paddingTop: 10,
       paddingBottom: 20,
@@ -108,5 +106,31 @@ const BottomTabNavigator = () => {
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  iconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BORDER_RADIUS.xl,
+    width: 56,
+    height: 56,
+    backgroundColor: 'transparent',
+  },
+  iconWrapperFocused: {
+    backgroundColor: COLORS.brandPrimary,
+  },
+  tabLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 10,
+    marginTop: 6,
+    textAlign: 'center',
+    color: COLORS.brandDarkest,
+  },
+});
 
 export default BottomTabNavigator;

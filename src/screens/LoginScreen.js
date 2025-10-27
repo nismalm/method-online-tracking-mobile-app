@@ -8,11 +8,13 @@ import {
   Alert,
   Text,
   TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
 import {TextInput, Button} from '../components';
 import MailIcon from '../../assets/icons/mailIcon';
 import PasswordIcon from '../../assets/icons/passwordIcon';
 import AuthService from '../services/authService';
+import {COLORS, FONTS, FONT_SIZES} from '../constants/theme';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -128,20 +130,20 @@ const LoginScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
-      <View className="flex-1 justify-center px-6">
-        <View className="items-center mb-2">
+      <View style={styles.contentContainer}>
+        <View style={styles.logoContainer}>
           <Image
             source={require('../../assets/logo/method_logo_lg.png')}
-            className="w-60 h-60"
+            style={styles.logo}
             resizeMode="contain"
           />
         </View>
 
-        <View className="mb-2">
+        <View style={styles.emailInputContainer}>
           <TextInput
             label="Email"
             value={email}
@@ -149,19 +151,19 @@ const LoginScreen = () => {
             placeholder="Enter your email"
             keyboardType="email-address"
             autoCapitalize="none"
-            leftIcon={<MailIcon width={20} height={20} stroke="#666666" />}
+            leftIcon={<MailIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
             error={emailError}
           />
         </View>
 
-        <View className="mb-8">
+        <View style={styles.passwordInputContainer}>
           <TextInput
             label="Password"
             value={password}
             onChangeText={handlePasswordChange}
             placeholder="Enter your password"
             secureTextEntry
-            leftIcon={<PasswordIcon width={20} height={20} stroke="#666666" />}
+            leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
             error={passwordError}
           />
         </View>
@@ -176,8 +178,8 @@ const LoginScreen = () => {
 
         <TouchableOpacity
           onPress={handleForgotPassword}
-          className="mt-4 items-center">
-          <Text className="text-gray-600 text-sm font-barlow-medium">
+          style={styles.forgotPasswordButton}>
+          <Text style={styles.forgotPasswordText}>
             Forgot Password?
           </Text>
         </TouchableOpacity>
@@ -185,5 +187,40 @@ const LoginScreen = () => {
     </KeyboardAvoidingView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logo: {
+    width: 240,
+    height: 240,
+  },
+  emailInputContainer: {
+    marginBottom: 8,
+  },
+  passwordInputContainer: {
+    marginBottom: 32,
+  },
+  forgotPasswordButton: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: COLORS.gray600,
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.medium,
+  },
+});
 
 export default LoginScreen;

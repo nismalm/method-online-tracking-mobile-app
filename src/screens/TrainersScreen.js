@@ -7,53 +7,58 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {Phone, Calendar, Search, UserSearch} from 'lucide-react-native';
 import Header from '../components/Header';
 import TextInput from '../components/TextInput';
 import FloatingActionButton from '../components/FloatingActionButton';
 import AddTrainerModal from '../components/AddTrainerModal';
 import EditTrainerModal from '../components/EditTrainerModal';
 import AddIcon from '../../assets/icons/addIcon';
+import PhoneIcon from '../../assets/icons/phoneIcon';
+import CalendarIcon from '../../assets/icons/calendarIcon';
+import SearchIcon from '../../assets/icons/searchIcon';
+import UserSearchIcon from '../../assets/icons/userSearchIcon';
 import AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 // Memoized trainer card to prevent unnecessary re-renders
 const TrainerCard = React.memo(({trainer, onPress}) => {
-  const statusColor = trainer.status === 'active' ? 'bg-brand-secondary' : 'bg-red-100';
-  const statusTextColor = trainer.status === 'active' ? 'text-brand-dark' : 'text-red-800';
+  const statusColor = trainer.status === 'active' ? COLORS.brandSecondary : '#FEE2E2';
+  const statusTextColor = trainer.status === 'active' ? COLORS.brandDark : '#991B1B';
 
   return (
     <TouchableOpacity
-      className="bg-white border border-brand-border rounded-2xl p-4 mb-3"
+      style={styles.trainerCard}
       onPress={() => onPress(trainer)}
       activeOpacity={0.7}>
-      <View className="flex-row items-center mb-3">
-        <View className="flex-1">
-          <Text className="text-lg font-barlow-semibold mb-1 text-brand-darkest">
+      <View style={styles.trainerCardHeader}>
+        <View style={styles.trainerInfo}>
+          <Text style={styles.trainerName}>
             {trainer.name}
           </Text>
-          <Text className="text-sm font-barlow text-brand-text-secondary">
+          <Text style={styles.trainerEmail}>
             {trainer.email}
           </Text>
         </View>
-        <View className={`px-3 py-1 rounded-lg ${statusColor}`}>
-          <Text className={`text-xs font-barlow-semibold ${statusTextColor} capitalize`}>
+        <View style={[styles.statusBadge, {backgroundColor: statusColor}]}>
+          <Text style={[styles.statusText, {color: statusTextColor}]}>
             {trainer.status}
           </Text>
         </View>
       </View>
-      <View className="flex-row items-center">
-        <Phone size={16} color="#3c3c3c" />
-        <Text className="text-sm font-barlow ml-1 text-brand-text-secondary">
+      <View style={styles.trainerPhone}>
+        <PhoneIcon width={16} height={16} stroke={COLORS.brandTextSecondary} />
+        <Text style={styles.trainerPhoneText}>
           {trainer.mobile}
         </Text>
       </View>
       {trainer.createdAt && (
-        <View className="flex-row items-center mt-2">
-          <Calendar size={16} color="#3c3c3c" />
-          <Text className="text-xs font-barlow ml-1 text-brand-text-secondary">
+        <View style={styles.trainerDate}>
+          <CalendarIcon width={16} height={16} stroke={COLORS.brandTextSecondary} />
+          <Text style={styles.trainerDateText}>
             Added {new Date(trainer.createdAt.toDate()).toLocaleDateString()}
           </Text>
         </View>
@@ -209,36 +214,36 @@ const TrainersScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#000000" />
-        <Text className="mt-4 text-gray-600 font-barlow">Loading trainers...</Text>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.black} />
+        <Text style={styles.loadingText}>Loading trainers...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-      <View className="px-6 py-8 flex-1 pt-2">
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <View style={styles.content}>
         {/* Header */}
         <Header title="Trainers" />
 
         {/* Search Bar */}
-        <View className="mb-6">
+        <View style={styles.searchContainer}>
           <TextInput
             placeholder="Search trainers..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            leftIcon={<Search size={20} color="#3c3c3c" />}
+            leftIcon={<SearchIcon width={20} height={20} stroke={COLORS.brandTextSecondary} />}
             variant="search"
           />
         </View>
 
         {/* Trainer Count */}
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-barlow-semibold text-brand-darkest">
+        <View style={styles.countHeader}>
+          <Text style={styles.countTitle}>
             All Trainers
           </Text>
-          <Text className="text-sm font-barlow text-brand-text-secondary">
+          <Text style={styles.countText}>
             {filteredTrainers.length} trainer{filteredTrainers.length !== 1 ? 's' : ''}
           </Text>
         </View>
@@ -250,9 +255,9 @@ const TrainersScreen = () => {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }>
           {filteredTrainers.length === 0 ? (
-            <View className="items-center justify-center py-12">
-              <UserSearch size={64} color="#d1d5db" />
-              <Text className="text-gray-500 font-barlow mt-4">
+            <View style={styles.emptyState}>
+              <UserSearchIcon width={64} height={64} stroke={COLORS.gray300} />
+              <Text style={styles.emptyText}>
                 {searchQuery ? 'No trainers found' : 'No trainers added yet'}
               </Text>
             </View>
@@ -271,9 +276,9 @@ const TrainersScreen = () => {
       {/* Floating Action Button - Only for SuperAdmin */}
       {isSuperAdmin() && (
         <FloatingActionButton
-          icon={<AddIcon width={24} height={24} fill="#040404" />}
+          icon={<AddIcon width={24} height={24} fill={COLORS.brandDarkest} />}
           onPress={() => setShowAddModal(true)}
-          backgroundColor="#c2e04f"
+          backgroundColor={COLORS.brandSecondary}
         />
       )}
 
@@ -297,5 +302,116 @@ const TrainersScreen = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: COLORS.gray600,
+    fontFamily: FONTS.regular,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    flex: 1,
+    paddingTop: 8,
+  },
+  searchContainer: {
+    marginBottom: 24,
+  },
+  countHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  countTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandDarkest,
+  },
+  countText: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+  },
+  trainerCard: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.brandBorder,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 16,
+    marginBottom: 12,
+  },
+  trainerCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trainerInfo: {
+    flex: 1,
+  },
+  trainerName: {
+    fontSize: FONT_SIZES.lg,
+    fontFamily: FONTS.semiBold,
+    marginBottom: 4,
+    color: COLORS.brandDarkest,
+  },
+  trainerEmail: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  statusText: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.semiBold,
+    textTransform: 'capitalize',
+  },
+  trainerPhone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trainerPhoneText: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    marginLeft: 4,
+    color: COLORS.brandTextSecondary,
+  },
+  trainerDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  trainerDateText: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    marginLeft: 4,
+    color: COLORS.brandTextSecondary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    color: COLORS.gray500,
+    fontFamily: FONTS.regular,
+    marginTop: 16,
+  },
+});
 
 export default TrainersScreen;

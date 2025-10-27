@@ -1,19 +1,36 @@
 import React from 'react';
-import {View, TouchableOpacity} from 'react-native';
+import {View, TouchableOpacity, StyleSheet} from 'react-native';
+import {COLORS, BORDER_RADIUS, SHADOWS} from '../constants/theme';
 
 const Card = ({
   children,
   onPress,
   variant = 'default',
-  className = '',
+  style,
 }) => {
-  const baseClass = 'rounded-2xl p-5 mb-4';
-
-  const variants = {
-    default: 'bg-white border border-gray-100 shadow-sm',
-    outlined: 'bg-white border-2 border-black',
-    filled: 'bg-black',
-    ghost: 'bg-transparent',
+  const getCardStyle = () => {
+    const styles = [cardStyles.base];
+    
+    switch (variant) {
+      case 'default':
+        styles.push(cardStyles.default);
+        break;
+      case 'outlined':
+        styles.push(cardStyles.outlined);
+        break;
+      case 'filled':
+        styles.push(cardStyles.filled);
+        break;
+      case 'ghost':
+        styles.push(cardStyles.ghost);
+        break;
+    }
+    
+    if (style) {
+      styles.push(style);
+    }
+    
+    return styles;
   };
 
   const Component = onPress ? TouchableOpacity : View;
@@ -21,12 +38,37 @@ const Card = ({
   return (
     <Component
       onPress={onPress}
-      className={`${baseClass} ${variants[variant]} ${className}`}
+      style={getCardStyle()}
       activeOpacity={onPress ? 0.8 : 1}
     >
       {children}
     </Component>
   );
 };
+
+const cardStyles = StyleSheet.create({
+  base: {
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 20,
+    marginBottom: 16,
+  },
+  default: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    ...SHADOWS.sm,
+  },
+  outlined: {
+    backgroundColor: COLORS.white,
+    borderWidth: 2,
+    borderColor: COLORS.black,
+  },
+  filled: {
+    backgroundColor: COLORS.black,
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+  },
+});
 
 export default Card;

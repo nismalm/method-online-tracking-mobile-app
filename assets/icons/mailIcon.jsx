@@ -7,7 +7,8 @@ const mailIcon = (props) => (
     viewBox="0 0 24 24"
     strokeWidth={1.5}
     stroke="currentColor"
-    className="size-6"
+    width={24}
+    height={24}
     {...props}
   >
     <Path

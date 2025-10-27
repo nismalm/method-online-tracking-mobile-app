@@ -8,28 +8,35 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {User, ChevronRight, LockKeyhole, Bell, Info, LogOut} from 'lucide-react-native';
 import Header from '../components/Header';
 import {TextInput, Button} from '../components';
 import AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
+import UserIcon from '../../assets/icons/userIcon';
+import ChevronRightIcon from '../../assets/icons/chevronRightIcon';
+import LockIcon from '../../assets/icons/lockIcon';
+import BellIcon from '../../assets/icons/bellIcon';
+import InfoIcon from '../../assets/icons/infoIcon';
+import LogoutIcon from '../../assets/icons/logoutIcon';
 import PasswordIcon from '../../assets/icons/passwordIcon';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const ProfileHeader = ({userProfile}) => (
-  <View className="items-center mb-8">
-    <View className="w-24 h-24 rounded-full items-center justify-center mb-4 bg-brand-primary">
-      <User size={48} color="#040404" />
+  <View style={styles.profileHeader}>
+    <View style={styles.avatarContainer}>
+      <UserIcon width={48} height={48} stroke={COLORS.brandDarkest} />
     </View>
-    <Text className="text-2xl font-barlow-bold mb-1 text-brand-darkest">
+    <Text style={styles.profileName}>
       {userProfile?.name || 'User'}
     </Text>
-    <Text className="text-base font-barlow text-brand-text-secondary">
+    <Text style={styles.profileEmail}>
       {userProfile?.email}
     </Text>
-    <View className="mt-2 px-3 py-1 rounded-lg bg-brand-secondary">
-      <Text className="text-sm font-barlow-semibold text-brand-darkest">
+    <View style={styles.roleBadge}>
+      <Text style={styles.roleText}>
         {userProfile?.role || 'User'}
       </Text>
     </View>
@@ -38,21 +45,23 @@ const ProfileHeader = ({userProfile}) => (
 
 const MenuItem = ({icon: IconComponent, label, onPress, danger = false}) => (
   <TouchableOpacity
-    className="flex-row items-center py-4 border-b border-brand-border"
+    style={styles.menuItem}
     onPress={onPress}>
     <View
-      className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${
-        danger ? 'bg-[#FEE2E2]' : 'bg-brand-primary'
-      }`}>
-      <IconComponent size={22} color={danger ? '#EF4444' : '#040404'} />
+      style={[
+        styles.menuIconContainer,
+        danger && styles.menuIconDanger,
+      ]}>
+      <IconComponent width={22} height={22} stroke={danger ? '#EF4444' : COLORS.brandDarkest} />
     </View>
     <Text
-      className={`flex-1 font-barlow-medium text-base ${
-        danger ? 'text-[#EF4444]' : 'text-brand-darkest'
-      }`}>
+      style={[
+        styles.menuLabel,
+        danger && styles.menuLabelDanger,
+      ]}>
       {label}
     </Text>
-    <ChevronRight size={24} color="#3c3c3c" />
+    <ChevronRightIcon width={24} height={24} stroke={COLORS.brandTextSecondary} />
   </TouchableOpacity>
 );
 
@@ -153,25 +162,25 @@ const ChangePasswordModal = ({visible, onClose}) => {
       onRequestClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1">
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl px-6 pt-6 pb-8 max-h-[90%]">
+        style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             {/* Header */}
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-barlow-bold text-gray-900">
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
                 Change Password
               </Text>
               <TouchableOpacity
                 onPress={handleClose}
                 disabled={loading}
-                className="p-2">
-                <Text className="text-gray-500 text-2xl font-barlow-medium">×</Text>
+                style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>×</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Current Password */}
-              <View className="mb-4">
+              <View style={styles.inputContainer}>
                 <TextInput
                   label="Current Password"
                   value={currentPassword}
@@ -181,14 +190,14 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Enter current password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke="#666666" />}
+                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={currentPasswordError}
                   editable={!loading}
                 />
               </View>
 
               {/* New Password */}
-              <View className="mb-4">
+              <View style={styles.inputContainer}>
                 <TextInput
                   label="New Password"
                   value={newPassword}
@@ -198,17 +207,17 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Enter new password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke="#666666" />}
+                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={newPasswordError}
                   editable={!loading}
                 />
-                <Text className="text-xs text-gray-500 mt-1 font-barlow">
+                <Text style={styles.helperText}>
                   Must be at least 6 characters
                 </Text>
               </View>
 
               {/* Confirm Password */}
-              <View className="mb-6">
+              <View style={styles.inputContainerLast}>
                 <TextInput
                   label="Confirm New Password"
                   value={confirmPassword}
@@ -218,15 +227,15 @@ const ChangePasswordModal = ({visible, onClose}) => {
                   }}
                   placeholder="Re-enter new password"
                   secureTextEntry
-                  leftIcon={<PasswordIcon width={20} height={20} stroke="#666666" />}
+                  leftIcon={<PasswordIcon width={20} height={20} stroke={COLORS.brandTextLight} />}
                   error={confirmPasswordError}
                   editable={!loading}
                 />
               </View>
 
               {/* Action Buttons */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
+              <View style={styles.buttonRow}>
+                <View style={styles.buttonHalf}>
                   <Button
                     title="Cancel"
                     onPress={handleClose}
@@ -234,7 +243,7 @@ const ChangePasswordModal = ({visible, onClose}) => {
                     disabled={loading}
                   />
                 </View>
-                <View className="flex-1">
+                <View style={styles.buttonHalf}>
                   <Button
                     title="Change Password"
                     onPress={handleSubmit}
@@ -272,9 +281,9 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-      <ScrollView className="flex-1">
-        <View className="px-6 py-8 pt-2">
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
           <Header title="Profile" />
 
           <ProfileHeader userProfile={userProfile} />
@@ -282,23 +291,23 @@ const ProfileScreen = () => {
           {/* User Info Section */}
           {userProfile && (
             <>
-              <Text className="text-sm font-barlow-semibold uppercase mb-3 mt-4 text-brand-text-secondary">
-                Information
+              <Text style={styles.sectionHeader}>
+                INFORMATION
               </Text>
-              <View className="bg-white border border-brand-border rounded-2xl p-4 mb-4">
-                <View className="mb-3">
-                  <Text className="text-xs font-barlow text-brand-text-secondary mb-1">
+              <View style={styles.infoCard}>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>
                     Mobile
                   </Text>
-                  <Text className="text-base font-barlow-medium text-brand-darkest">
+                  <Text style={styles.infoValue}>
                     {userProfile.mobile || 'Not provided'}
                   </Text>
                 </View>
                 <View>
-                  <Text className="text-xs font-barlow text-brand-text-secondary mb-1">
+                  <Text style={styles.infoLabel}>
                     Status
                   </Text>
-                  <Text className="text-base font-barlow-medium text-brand-darkest capitalize">
+                  <Text style={[styles.infoValue, styles.capitalize]}>
                     {userProfile.status || 'Active'}
                   </Text>
                 </View>
@@ -307,39 +316,39 @@ const ProfileScreen = () => {
           )}
 
           {/* Settings Section */}
-          <Text className="text-sm font-barlow-semibold uppercase mb-3 mt-4 text-brand-text-secondary">
-            Account
+          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+            ACCOUNT
           </Text>
-          <View className="bg-white">
+          <View style={styles.menuContainer}>
             <MenuItem
-              icon={LockKeyhole}
+              icon={LockIcon}
               label="Change Password"
               onPress={() => setShowPasswordModal(true)}
             />
             <MenuItem
-              icon={Bell}
+              icon={BellIcon}
               label="Notifications"
               onPress={() => console.log('Notifications')}
             />
           </View>
 
-          <Text className="text-sm font-barlow-semibold uppercase mb-3 mt-6 text-brand-text-secondary">
-            About
+          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+            ABOUT
           </Text>
-          <View className="bg-white">
+          <View style={styles.menuContainer}>
             <MenuItem
-              icon={Info}
+              icon={InfoIcon}
               label="About"
               onPress={() => console.log('About')}
             />
           </View>
 
-          <Text className="text-sm font-barlow-semibold uppercase mb-3 mt-6 text-brand-text-secondary">
-            Actions
+          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+            ACTIONS
           </Text>
-          <View className="bg-white">
+          <View style={styles.menuContainer}>
             <MenuItem
-              icon={LogOut}
+              icon={LogoutIcon}
               label="Sign Out"
               onPress={handleSignOut}
               danger={true}
@@ -357,4 +366,179 @@ const ProfileScreen = () => {
   );
 };
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    paddingTop: 8,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatarContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    backgroundColor: COLORS.brandPrimary,
+  },
+  profileName: {
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.bold,
+    marginBottom: 4,
+    color: COLORS.brandDarkest,
+  },
+  profileEmail: {
+    fontSize: FONT_SIZES.base,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+  },
+  roleBadge: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.brandSecondary,
+  },
+  roleText: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandDarkest,
+  },
+  sectionHeader: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.semiBold,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+    marginTop: 16,
+    color: COLORS.brandTextSecondary,
+  },
+  sectionHeaderSpaced: {
+    marginTop: 24,
+  },
+  infoCard: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.brandBorder,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 16,
+    marginBottom: 16,
+  },
+  infoItem: {
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: FONT_SIZES.base,
+    fontFamily: FONTS.medium,
+    color: COLORS.brandDarkest,
+  },
+  capitalize: {
+    textTransform: 'capitalize',
+  },
+  menuContainer: {
+    backgroundColor: COLORS.white,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.brandBorder,
+  },
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    backgroundColor: COLORS.brandPrimary,
+  },
+  menuIconDanger: {
+    backgroundColor: '#FEE2E2',
+  },
+  menuLabel: {
+    flex: 1,
+    fontFamily: FONTS.medium,
+    fontSize: FONT_SIZES.base,
+    color: COLORS.brandDarkest,
+  },
+  menuLabelDanger: {
+    color: '#EF4444',
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.bold,
+    color: COLORS.gray900,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: COLORS.gray500,
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.medium,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputContainerLast: {
+    marginBottom: 24,
+  },
+  helperText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    marginTop: 4,
+    fontFamily: FONTS.regular,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+});
+
 export default ProfileScreen;
+

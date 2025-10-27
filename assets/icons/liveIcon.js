@@ -1,7 +1,7 @@
 import * as React from "react";
 import Svg, { G, Path } from "react-native-svg";
 /* SVGR has dropped some elements not supported by react-native-svg: title, desc */
-const SVGComponent = (props) => (
+const LiveIcon = (props) => (
   <Svg
     width="24px"
     height="24px"
@@ -26,4 +26,4 @@ const SVGComponent = (props) => (
     </G>
   </Svg>
 );
-export default SVGComponent;
+export default LiveIcon;

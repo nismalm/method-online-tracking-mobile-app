@@ -8,9 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import {TextInput, Button} from '../components';
 import AuthService from '../services/authService';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
   const [name, setName] = useState('');
@@ -135,19 +137,19 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
       onRequestClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1">
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl px-6 pt-6 pb-8 max-h-[90%]">
+        style={styles.keyboardView}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             {/* Header */}
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-barlow-bold text-gray-900">
+            <View style={styles.header}>
+              <Text style={styles.title}>
                 Edit Trainer
               </Text>
               <TouchableOpacity
                 onPress={handleClose}
                 disabled={loading}
-                className="p-2">
-                <Text className="text-gray-500 text-2xl font-barlow-medium">
+                style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>
                   ×
                 </Text>
               </TouchableOpacity>
@@ -155,7 +157,7 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
 
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Name Input */}
-              <View className="mb-4">
+              <View style={styles.inputContainer}>
                 <TextInput
                   label="Full Name"
                   value={name}
@@ -171,7 +173,7 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
               </View>
 
               {/* Email Input */}
-              <View className="mb-4">
+              <View style={styles.inputContainer}>
                 <TextInput
                   label="Email Address"
                   value={email}
@@ -185,13 +187,13 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
                   error={emailError}
                   editable={!loading}
                 />
-                <Text className="text-xs text-gray-500 mt-1 font-barlow">
+                <Text style={styles.helperText}>
                   Note: Changing email won't update login credentials
                 </Text>
               </View>
 
               {/* Mobile Input */}
-              <View className="mb-6">
+              <View style={styles.inputContainerLast}>
                 <TextInput
                   label="Mobile Number"
                   value={mobile}
@@ -204,14 +206,14 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
                   error={mobileError}
                   editable={!loading}
                 />
-                <Text className="text-xs text-gray-500 mt-1 font-barlow">
+                <Text style={styles.helperText}>
                   Format: +91 followed by 10 digits
                 </Text>
               </View>
 
               {/* Action Buttons */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
+              <View style={styles.buttonRow}>
+                <View style={styles.buttonHalf}>
                   <Button
                     title="Cancel"
                     onPress={handleClose}
@@ -219,7 +221,7 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
                     disabled={loading}
                   />
                 </View>
-                <View className="flex-1">
+                <View style={styles.buttonHalf}>
                   <Button
                     title="Update Trainer"
                     onPress={handleSubmit}
@@ -235,5 +237,63 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    maxHeight: '90%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.bold,
+    color: COLORS.gray900,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: COLORS.gray500,
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.medium,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputContainerLast: {
+    marginBottom: 24,
+  },
+  helperText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    marginTop: 4,
+    fontFamily: FONTS.regular,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+});
 
 export default EditTrainerModal;

@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
-import {View, Text} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
 import {Dropdown as ElementDropdown} from 'react-native-element-dropdown';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const Dropdown = ({
   label,
@@ -11,44 +12,66 @@ const Dropdown = ({
   error,
   searchable = true,
   searchPlaceholder = 'Search...',
-  className = '',
+  style,
 }) => {
   const [isFocus, setIsFocus] = useState(false);
 
-  // NativeWind classes for container
-  const getContainerClass = () => {
-    let baseClass = 'rounded-xl bg-white h-12 px-4 flex justify-center';
-    if (error) return `${baseClass} border-2 border-black`;
-    if (isFocus) return `${baseClass} border-2 border-black`;
-    return `${baseClass} border border-gray-200`;
+  const getContainerStyle = () => {
+    const styles = [containerStyles.base];
+    
+    if (error) {
+      styles.push(containerStyles.error);
+    } else if (isFocus) {
+      styles.push(containerStyles.focused);
+    } else {
+      styles.push(containerStyles.normal);
+    }
+    
+    if (style) {
+      styles.push(style);
+    }
+    
+    return styles;
   };
 
-  // Minimal required styles for ElementDropdown (library requirement)
+  // Styles required by ElementDropdown library
   const dropdownStyles = {
     dropdown: { height: 48 },
-    placeholder: { fontSize: 16, color: '#999999', fontFamily: 'Barlow-Regular' },
-    selectedText: { fontSize: 16, color: '#000000', fontFamily: 'Barlow-Regular' },
+    placeholder: { fontSize: 16, color: COLORS.gray400, fontFamily: FONTS.regular },
+    selectedText: { fontSize: 16, color: COLORS.black, fontFamily: FONTS.regular },
     icon: { width: 20, height: 20 },
     inputSearch: {
-      height: 40, fontSize: 16, borderRadius: 8, paddingHorizontal: 0,
-      borderWidth: 0, borderColor: '#e5e5e5', color: '#000000',
-      fontFamily: 'Barlow-Regular', marginHorizontal: 12, marginVertical: 8,
-      backgroundColor: '#ffffff'
+      height: 40, 
+      fontSize: 16, 
+      borderRadius: 8, 
+      paddingHorizontal: 0,
+      borderWidth: 0, 
+      borderColor: COLORS.brandBorder, 
+      color: COLORS.black,
+      fontFamily: FONTS.regular, 
+      marginHorizontal: 12, 
+      marginVertical: 8,
+      backgroundColor: COLORS.white
     },
     container: { borderRadius: 12, borderWidth: 0, marginTop: 4 },
-    item: { fontSize: 16, color: '#000000', fontFamily: 'Barlow-Regular' },
-    itemContainer: { paddingVertical: 2, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: '#f0f0f0' }
+    item: { fontSize: 16, color: COLORS.black, fontFamily: FONTS.regular },
+    itemContainer: { 
+      paddingVertical: 2, 
+      paddingHorizontal: 16, 
+      borderBottomWidth: 0.5, 
+      borderBottomColor: '#f0f0f0' 
+    }
   };
 
   return (
-    <View className={className}>
+    <View>
       {label && (
-        <Text className="text-black text-sm font-barlow-semibold mb-2">
+        <Text style={labelStyles.label}>
           {label}
         </Text>
       )}
 
-      <View className={getContainerClass()}>
+      <View style={getContainerStyle()}>
         <ElementDropdown
           data={items}
           search={searchable}
@@ -77,12 +100,52 @@ const Dropdown = ({
       </View>
 
       {error && (
-        <Text className="text-black text-xs mt-1.5 font-barlow-medium">
+        <Text style={errorStyles.text}>
           ⚠️ {error}
         </Text>
       )}
     </View>
   );
 };
+
+const labelStyles = StyleSheet.create({
+  label: {
+    color: COLORS.black,
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.semiBold,
+    marginBottom: 8,
+  },
+});
+
+const containerStyles = StyleSheet.create({
+  base: {
+    borderRadius: BORDER_RADIUS.xl,
+    backgroundColor: COLORS.white,
+    height: 48,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  normal: {
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  focused: {
+    borderWidth: 2,
+    borderColor: COLORS.black,
+  },
+  error: {
+    borderWidth: 2,
+    borderColor: COLORS.black,
+  },
+});
+
+const errorStyles = StyleSheet.create({
+  text: {
+    color: COLORS.black,
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.medium,
+    marginTop: 6,
+  },
+});
 
 export default Dropdown;

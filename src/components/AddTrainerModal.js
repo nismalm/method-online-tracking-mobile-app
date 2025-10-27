@@ -8,12 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
+  StyleSheet,
   Clipboard,
 } from 'react-native';
 import {TextInput, Button} from '../components';
 import AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
   const {user} = useAuth();
@@ -103,7 +104,6 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
       );
 
       if (result.success) {
-        // FIXED: Use new handler to avoid modal nesting
         handleTrainerCreated(email.trim(), result.password);
         if (onTrainerAdded) {
           onTrainerAdded();
@@ -140,15 +140,12 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
     resetForm();
   };
 
-  // FIXED: Close main modal before showing success modal to prevent nesting
   const handleTrainerCreated = (email, password) => {
     setCreatedCredentials({
       email: email,
       password: password,
     });
-    // Close main modal first
     onClose();
-    // Small delay to ensure modal closes before showing success
     setTimeout(() => {
       setShowSuccessModal(true);
     }, 300);
@@ -163,169 +160,165 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
         onRequestClose={handleClose}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1">
-          <View className="flex-1 justify-end bg-black/50">
-            <View className="bg-white rounded-t-3xl px-6 pt-6 pb-8 max-h-[90%]">
-            {/* Header */}
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-barlow-bold text-gray-900">
-                Add New Trainer
-              </Text>
-              <TouchableOpacity
-                onPress={handleClose}
-                disabled={loading}
-                className="p-2">
-                <Text className="text-gray-500 text-2xl font-barlow-medium">
-                  ×
+          style={styles.keyboardView}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Header */}
+              <View style={styles.header}>
+                <Text style={styles.title}>
+                  Add New Trainer
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleClose}
+                  disabled={loading}
+                  style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>
+                    ×
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Name Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    label="Full Name"
+                    value={name}
+                    onChangeText={(text) => {
+                      setName(text);
+                      setNameError('');
+                    }}
+                    placeholder="Enter trainer's full name"
+                    autoCapitalize="words"
+                    error={nameError}
+                    editable={!loading}
+                  />
+                </View>
+
+                {/* Email Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    label="Email Address"
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setEmailError('');
+                    }}
+                    placeholder="trainer@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={emailError}
+                    editable={!loading}
+                  />
+                  <Text style={styles.helperText}>
+                    Trainer will use this email to login
+                  </Text>
+                </View>
+
+                {/* Mobile Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    label="Mobile Number"
+                    value={mobile}
+                    onChangeText={(text) => {
+                      if (text === '') {
+                        setMobile('+91');
+                      }
+                      else if (!text.startsWith('+91')) {
+                        const numbers = text.replace(/\D/g, '');
+                        setMobile('+91' + numbers);
+                      }
+                      else {
+                        setMobile(text);
+                      }
+                      setMobileError('');
+                    }}
+                    placeholder="+91XXXXXXXXXX"
+                    keyboardType="phone-pad"
+                    error={mobileError}
+                    editable={!loading}
+                  />
+                  <Text style={styles.helperText}>
+                    Format: +91 followed by 10 digits
+                  </Text>
+                </View>
+
+                {/* Info Box */}
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoTitle}>
+                    Password Setup
+                  </Text>
+                  <Text style={styles.infoText}>
+                    A password reset email will be sent to the trainer. They can
+                    use it to set their own password before logging in.
+                  </Text>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.buttonRow}>
+                  <View style={styles.buttonHalf}>
+                    <Button
+                      title="Cancel"
+                      onPress={handleClose}
+                      variant="outline"
+                      disabled={loading}
+                    />
+                  </View>
+                  <View style={styles.buttonHalf}>
+                    <Button
+                      title="Create Trainer"
+                      onPress={handleSubmit}
+                      loading={loading}
+                      disabled={loading || !name || !email || !mobile}
+                    />
+                  </View>
+                </View>
+              </ScrollView>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Name Input */}
-              <View className="mb-4">
-                <TextInput
-                  label="Full Name"
-                  value={name}
-                  onChangeText={(text) => {
-                    setName(text);
-                    setNameError('');
-                  }}
-                  placeholder="Enter trainer's full name"
-                  autoCapitalize="words"
-                  error={nameError}
-                  editable={!loading}
-                />
-              </View>
-
-              {/* Email Input */}
-              <View className="mb-4">
-                <TextInput
-                  label="Email Address"
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setEmailError('');
-                  }}
-                  placeholder="trainer@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={emailError}
-                  editable={!loading}
-                />
-                <Text className="text-xs text-gray-500 mt-1 font-barlow">
-                  Trainer will use this email to login
-                </Text>
-              </View>
-
-              {/* Mobile Input */}
-              <View className="mb-4">
-                <TextInput
-                  label="Mobile Number"
-                  value={mobile}
-                  onChangeText={(text) => {
-                    // If user completely clears the field, reset to +91
-                    if (text === '') {
-                      setMobile('+91');
-                    }
-                    // If user is typing and removed the +91 prefix, restore it
-                    else if (!text.startsWith('+91')) {
-                      // Extract just the numbers
-                      const numbers = text.replace(/\D/g, '');
-                      setMobile('+91' + numbers);
-                    }
-                    // Normal case - user is typing after +91
-                    else {
-                      setMobile(text);
-                    }
-                    setMobileError('');
-                  }}
-                  placeholder="+91XXXXXXXXXX"
-                  keyboardType="phone-pad"
-                  error={mobileError}
-                  editable={!loading}
-                />
-                <Text className="text-xs text-gray-500 mt-1 font-barlow">
-                  Format: +91 followed by 10 digits
-                </Text>
-              </View>
-
-              {/* Info Box */}
-              <View className="bg-blue-50 p-4 rounded-xl mb-6">
-                <Text className="text-sm text-blue-800 font-barlow-medium mb-1">
-                  Password Setup
-                </Text>
-                <Text className="text-xs text-blue-600 font-barlow">
-                  A password reset email will be sent to the trainer. They can
-                  use it to set their own password before logging in.
-                </Text>
-              </View>
-
-              {/* Action Buttons */}
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Button
-                    title="Cancel"
-                    onPress={handleClose}
-                    variant="outline"
-                    disabled={loading}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Button
-                    title="Create Trainer"
-                    onPress={handleSubmit}
-                    loading={loading}
-                    disabled={loading || !name || !email || !mobile}
-                  />
-                </View>
-              </View>
-            </ScrollView>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* Success Modal - Now separated to avoid nesting */}
+      {/* Success Modal */}
       <Modal
         visible={showSuccessModal}
         animationType="fade"
         transparent={true}
         onRequestClose={handleSuccessModalClose}>
-        <View className="flex-1 justify-center items-center bg-black/50 px-6">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View style={styles.successOverlay}>
+          <View style={styles.successContent}>
             {/* Success Icon */}
-            <View className="items-center mb-4">
-              <View className="bg-brand-dark rounded-full w-16 h-16 items-center justify-center mb-3">
-                <Text className="text-brand-secondary text-3xl font-barlow-bold">
+            <View style={styles.successHeader}>
+              <View style={styles.successIcon}>
+                <Text style={styles.successCheckmark}>
                   ✓
                 </Text>
               </View>
-              <Text className="text-xl font-barlow-bold text-gray-900">
+              <Text style={styles.successTitle}>
                 Trainer Created Successfully
               </Text>
-              <Text className="text-sm text-gray-600 font-barlow mt-1 text-center">
+              <Text style={styles.successSubtitle}>
                 Trainer account created!
               </Text>
             </View>
 
             {/* Credentials */}
-            <View className="bg-gray-50 rounded-xl p-4 mb-4">
+            <View style={styles.credentialsBox}>
               {/* Email */}
-              <View className="mb-3">
-                <Text className="text-xs text-gray-500 font-barlow-medium mb-1">
+              <View style={styles.credentialItem}>
+                <Text style={styles.credentialLabel}>
                   EMAIL
                 </Text>
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-base text-gray-900 font-barlow-medium flex-1">
+                <View style={styles.credentialRow}>
+                  <Text style={styles.credentialValue}>
                     {createdCredentials.email}
                   </Text>
                   <TouchableOpacity
                     onPress={() =>
                       copyToClipboard(createdCredentials.email, 'Email')
                     }
-                    className="ml-2 bg-brand-dark px-3 py-1.5 rounded-lg">
-                    <Text className="text-brand-secondary text-xs font-barlow-bold">
+                    style={styles.copyButton}>
+                    <Text style={styles.copyButtonText}>
                       COPY
                     </Text>
                   </TouchableOpacity>
@@ -334,19 +327,19 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
 
               {/* Password */}
               <View>
-                <Text className="text-xs text-gray-500 font-barlow-medium mb-1">
+                <Text style={styles.credentialLabel}>
                   PASSWORD
                 </Text>
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-base text-gray-900 font-barlow-bold flex-1">
+                <View style={styles.credentialRow}>
+                  <Text style={[styles.credentialValue, styles.passwordValue]}>
                     {createdCredentials.password}
                   </Text>
                   <TouchableOpacity
                     onPress={() =>
                       copyToClipboard(createdCredentials.password, 'Password')
                     }
-                    className="ml-2 bg-brand-dark px-3 py-1.5 rounded-lg">
-                    <Text className="text-brand-secondary text-xs font-barlow-bold">
+                    style={styles.copyButton}>
+                    <Text style={styles.copyButtonText}>
                       COPY
                     </Text>
                   </TouchableOpacity>
@@ -357,15 +350,15 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
             {/* Copy All Button */}
             <TouchableOpacity
               onPress={copyAllCredentials}
-              className="bg-brand-dark py-3 rounded-xl mb-4">
-              <Text className="text-brand-secondary text-center font-barlow-bold text-base">
+              style={styles.copyAllButton}>
+              <Text style={styles.copyAllButtonText}>
                 Copy All Credentials
               </Text>
             </TouchableOpacity>
 
             {/* Info Message */}
-            <View className="bg-brand-white p-3 rounded-xl mb-4">
-              <Text className="text-xs text-brand-dark font-barlow text-center">
+            <View style={styles.successInfoBox}>
+              <Text style={styles.successInfoText}>
                 A password reset email will be sent to the trainer. They can
                 use it to set their own password.
               </Text>
@@ -379,5 +372,187 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
     </>
   );
 };
+
+const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    maxHeight: '90%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.bold,
+    color: COLORS.gray900,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: COLORS.gray500,
+    fontSize: FONT_SIZES['2xl'],
+    fontFamily: FONTS.medium,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  helperText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    marginTop: 4,
+    fontFamily: FONTS.regular,
+  },
+  infoBox: {
+    backgroundColor: '#EFF6FF',
+    padding: 16,
+    borderRadius: BORDER_RADIUS.xl,
+    marginBottom: 24,
+  },
+  infoTitle: {
+    fontSize: FONT_SIZES.sm,
+    color: '#1E3A8A',
+    fontFamily: FONTS.medium,
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: FONT_SIZES.xs,
+    color: '#2563EB',
+    fontFamily: FONTS.regular,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
+  // Success Modal Styles
+  successOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 24,
+  },
+  successContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  successHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successIcon: {
+    backgroundColor: COLORS.brandDark,
+    borderRadius: 32,
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successCheckmark: {
+    color: COLORS.brandSecondary,
+    fontSize: FONT_SIZES['3xl'],
+    fontFamily: FONTS.bold,
+  },
+  successTitle: {
+    fontSize: FONT_SIZES.xl,
+    fontFamily: FONTS.bold,
+    color: COLORS.gray900,
+  },
+  successSubtitle: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray600,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  credentialsBox: {
+    backgroundColor: COLORS.gray50,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: 16,
+    marginBottom: 16,
+  },
+  credentialItem: {
+    marginBottom: 12,
+  },
+  credentialLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray500,
+    fontFamily: FONTS.medium,
+    marginBottom: 4,
+  },
+  credentialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  credentialValue: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.gray900,
+    fontFamily: FONTS.medium,
+    flex: 1,
+  },
+  passwordValue: {
+    fontFamily: FONTS.bold,
+  },
+  copyButton: {
+    marginLeft: 8,
+    backgroundColor: COLORS.brandDark,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  copyButtonText: {
+    color: COLORS.brandSecondary,
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.bold,
+  },
+  copyAllButton: {
+    backgroundColor: COLORS.brandDark,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.xl,
+    marginBottom: 16,
+  },
+  copyAllButtonText: {
+    color: COLORS.brandSecondary,
+    textAlign: 'center',
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.base,
+  },
+  successInfoBox: {
+    backgroundColor: COLORS.brandWhite,
+    padding: 12,
+    borderRadius: BORDER_RADIUS.xl,
+    marginBottom: 16,
+  },
+  successInfoText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.brandDark,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+  },
+});
 
 export default AddTrainerModal;

@@ -1,6 +1,6 @@
 import * as React from "react";
 import Svg, { G, Path } from "react-native-svg";
-const SVGComponent = (props) => (
+const ClientsIcon = (props) => (
   <Svg
     id="Layer_1"
     xmlns="http://www.w3.org/2000/svg"
@@ -8,9 +8,7 @@ const SVGComponent = (props) => (
     x="0px"
     y="0px"
     viewBox="0 0 475.851 475.851"
-    style={{
-      enableBackground: "new 0 0 475.851 475.851",
-    }}
+    enableBackground="new 0 0 475.851 475.851"
     xmlSpace="preserve"
     {...props}
   >
@@ -30,4 +28,4 @@ const SVGComponent = (props) => (
     </G>
   </Svg>
 );
-export default SVGComponent;
+export default ClientsIcon;

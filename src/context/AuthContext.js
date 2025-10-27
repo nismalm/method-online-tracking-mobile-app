@@ -1,7 +1,7 @@
 import React, {createContext, useState, useEffect, useContext, useCallback, useRef} from 'react';
 import {Alert} from 'react-native';
 import AuthService from '../services/authService';
-import firestore from '@react-native-firebase/firestore';
+import firestore, {getFirestore} from '@react-native-firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -27,7 +27,7 @@ export const AuthProvider = ({children}) => {
   // Fetch user profile from Firestore
   const fetchUserProfile = async (uid) => {
     try {
-      const userDoc = await firestore().collection('users').doc(uid).get();
+      const userDoc = await getFirestore().collection('users').doc(uid).get();
 
       if (userDoc.exists) {
         const profile = userDoc.data();
@@ -65,7 +65,7 @@ export const AuthProvider = ({children}) => {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const unsubscribe = firestore()
+    const unsubscribe = getFirestore()
       .collection('users')
       .doc(user.uid)
       .onSnapshot(

@@ -1,18 +1,18 @@
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
-import {firebase} from '@react-native-firebase/app';
+import auth, {getAuth} from '@react-native-firebase/auth';
+import firestore, {getFirestore} from '@react-native-firebase/firestore';
+import {getApp, initializeApp} from '@react-native-firebase/app';
 
 class AuthService {
   async signIn(email, password) {
     try {
-      const result = await auth().signInWithEmailAndPassword(email, password);
+      const result = await getAuth().signInWithEmailAndPassword(email, password);
 
       // Check user status in Firestore
-      const userDoc = await firestore().collection('users').doc(result.user.uid).get();
+      const userDoc = await getFirestore().collection('users').doc(result.user.uid).get();
 
       if (!userDoc.exists) {
         // User exists in Auth but not in Firestore - should not happen
-        await auth().signOut();
+        await getAuth().signOut();
         return {success: false, error: 'User profile not found. Please contact support.'};
       }
 
@@ -21,7 +21,7 @@ class AuthService {
       // Check if user status is active (SuperAdmin always allowed)
       if (userData.status !== 'active' && userData.role !== 'SuperAdmin') {
         // Sign out inactive user
-        await auth().signOut();
+        await getAuth().signOut();
         return {success: false, error: 'Your account has been deactivated. Please contact administrator.'};
       }
 
@@ -33,8 +33,8 @@ class AuthService {
 
   async signUp(email, password, username, role) {
     try {
-      const result = await auth().createUserWithEmailAndPassword(email, password);
-      await firestore().collection('users').doc(result.user.uid).set({
+      const result = await getAuth().createUserWithEmailAndPassword(email, password);
+      await getFirestore().collection('users').doc(result.user.uid).set({
         uid: result.user.uid,
         email,
         username,
@@ -65,10 +65,10 @@ class AuthService {
       // Get or create a secondary Firebase app instance
       // This prevents interfering with the main auth session
       try {
-        secondaryApp = firebase.app('secondary');
+        secondaryApp = getApp('secondary');
       } catch (e) {
         // Secondary app doesn't exist, create it
-        const config = firebase.app().options;
+        const config = getApp().options;
 
         // Add databaseURL if not present (required for secondary app)
         const secondaryConfig = {
@@ -76,11 +76,11 @@ class AuthService {
           databaseURL: config.databaseURL || `https://${config.projectId}.firebaseio.com`,
         };
 
-        secondaryApp = await firebase.initializeApp(secondaryConfig, 'secondary');
+        secondaryApp = await initializeApp(secondaryConfig, 'secondary');
       }
 
       // Create user using the secondary app instance
-      const secondaryAuth = secondaryApp.auth();
+      const secondaryAuth = getAuth(secondaryApp);
       const result = await secondaryAuth.createUserWithEmailAndPassword(
         email.trim().toLowerCase(),
         password
@@ -89,7 +89,7 @@ class AuthService {
       const newTrainerId = result.user.uid;
 
       // Create Firestore document (using main instance)
-      await firestore().collection('users').doc(newTrainerId).set({
+      await getFirestore().collection('users').doc(newTrainerId).set({
         uid: newTrainerId,
         email: email.trim().toLowerCase(),
         name: name.trim(),
@@ -106,7 +106,7 @@ class AuthService {
       await secondaryAuth.signOut();
 
       // Send password reset email (using main auth)
-      await auth().sendPasswordResetEmail(email.trim().toLowerCase());
+      await getAuth().sendPasswordResetEmail(email.trim().toLowerCase());
 
       return {
         success: true,
@@ -120,7 +120,7 @@ class AuthService {
       // Clean up secondary app session if it exists
       if (secondaryApp) {
         try {
-          await secondaryApp.auth().signOut();
+          await secondaryApp.getAuth().signOut();
         } catch (e) {
           console.error('Secondary auth signout error:', e);
         }
@@ -133,7 +133,7 @@ class AuthService {
   // Get user profile from Firestore
   async getUserProfile(uid) {
     try {
-      const userDoc = await firestore().collection('users').doc(uid).get();
+      const userDoc = await getFirestore().collection('users').doc(uid).get();
       if (userDoc.exists) {
         return {success: true, profile: userDoc.data()};
       } else {
@@ -148,7 +148,7 @@ class AuthService {
   // Update user profile
   async updateUserProfile(uid, data) {
     try {
-      await firestore().collection('users').doc(uid).update(data);
+      await getFirestore().collection('users').doc(uid).update(data);
       return {success: true};
     } catch (error) {
       console.error('Update profile error:', error);
@@ -159,7 +159,7 @@ class AuthService {
   // Change password
   async changePassword(currentPassword, newPassword) {
     try {
-      const user = auth().currentUser;
+      const user = getAuth().currentUser;
       if (!user || !user.email) {
         return {success: false, error: 'No user logged in'};
       }
@@ -175,7 +175,7 @@ class AuthService {
       await user.updatePassword(newPassword);
 
       // Update mustChangePassword flag if it exists
-      await firestore().collection('users').doc(user.uid).update({
+      await getFirestore().collection('users').doc(user.uid).update({
         mustChangePassword: false,
       });
 
@@ -188,7 +188,7 @@ class AuthService {
 
   async resetPassword(email) {
     try {
-      await auth().sendPasswordResetEmail(email);
+      await getAuth().sendPasswordResetEmail(email);
       return {success: true};
     } catch (error) {
       return {success: false, error: this.getErrorMessage(error.code)};
@@ -197,7 +197,7 @@ class AuthService {
 
   async signOut() {
     try {
-      await auth().signOut();
+      await getAuth().signOut();
       return {success: true};
     } catch (error) {
       return {success: false, error: error.message};
@@ -205,17 +205,17 @@ class AuthService {
   }
 
   onAuthStateChanged(callback) {
-    return auth().onAuthStateChanged(callback);
+    return getAuth().onAuthStateChanged(callback);
   }
 
   getCurrentUser() {
-    return auth().currentUser;
+    return getAuth().currentUser;
   }
 
   // Get all trainers (SuperAdmin only)
   async getAllTrainers() {
     try {
-      const snapshot = await firestore()
+      const snapshot = await getFirestore()
         .collection('users')
         .where('role', '==', 'Trainer')
         .get();
@@ -225,8 +225,12 @@ class AuthService {
         .map(doc => doc.data())
         .sort((a, b) => {
           // Sort by createdAt descending (newest first)
-          if (!a.createdAt) return 1;
-          if (!b.createdAt) return -1;
+          if (!a.createdAt) {
+            return 1;
+          }
+          if (!b.createdAt) {
+            return -1;
+          }
           return b.createdAt.toMillis() - a.createdAt.toMillis();
         });
 
@@ -240,7 +244,7 @@ class AuthService {
   // Update trainer status (SuperAdmin only)
   async updateTrainerStatus(trainerId, status) {
     try {
-      await firestore().collection('users').doc(trainerId).update({
+      await getFirestore().collection('users').doc(trainerId).update({
         status,
       });
       return {success: true};
@@ -253,7 +257,7 @@ class AuthService {
   // Update trainer details (SuperAdmin only)
   async updateTrainer(trainerId, name, email, mobile) {
     try {
-      await firestore().collection('users').doc(trainerId).update({
+      await getFirestore().collection('users').doc(trainerId).update({
         name: name.trim(),
         username: name.trim(),
         email: email.trim().toLowerCase(),
@@ -270,7 +274,7 @@ class AuthService {
   async deleteTrainer(trainerId) {
     try {
       // Delete from Firestore
-      await firestore().collection('users').doc(trainerId).delete();
+      await getFirestore().collection('users').doc(trainerId).delete();
 
       // Note: We cannot delete from Firebase Auth using client SDK
       // The user will still exist in Authentication but not in Firestore

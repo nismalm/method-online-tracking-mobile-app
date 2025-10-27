@@ -1,5 +1,4 @@
 import UIKit
-import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import Firebase
@@ -8,17 +7,26 @@ import FirebaseMessaging
 import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
-  var window: UIWindow?
+class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate {
 
-  var reactNativeDelegate: ReactNativeDelegate?
-  var reactNativeFactory: RCTReactNativeFactory?
-
-  func application(
+  override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+
+    print("=== AppDelegate: Starting initialization")
+
+    // CRITICAL: Set module name BEFORE anything else
+    self.moduleName = "MethodOnlineTracker"
+    print("=== Module name set: \(self.moduleName)")
+
+    // Set dependency provider for React Native 0.78+ New Architecture
+    self.dependencyProvider = RCTAppDependencyProvider()
+    print("=== Dependency provider set")
+
+    // Configure Firebase
     FirebaseApp.configure()
+    print("=== Firebase configured")
 
     // Configure push notifications
     UNUserNotificationCenter.current().delegate = self
@@ -27,114 +35,80 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       options: authOptions,
       completionHandler: { granted, error in
         if let error = error {
-          print("Error requesting notification authorization: \(error.localizedDescription)")
+          print("=== Error requesting notification authorization: \(error.localizedDescription)")
         }
         if granted {
-          print("Notification authorization granted")
+          print("=== Notification authorization granted")
         }
       }
     )
     application.registerForRemoteNotifications()
+    print("=== Registered for remote notifications")
 
-    let delegate = ReactNativeDelegate()
-    let factory = RCTReactNativeFactory(delegate: delegate)
-    delegate.dependencyProvider = RCTAppDependencyProvider()
+    // Call super to initialize React Native
+    print("=== Calling super.application")
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    print("=== React Native initialized: \(result)")
 
-    reactNativeDelegate = delegate
-    reactNativeFactory = factory
-
-    window = UIWindow(frame: UIScreen.main.bounds)
-
-    factory.startReactNative(
-      withModuleName: "MethodOnlineTracker",
-      in: window,
-      launchOptions: launchOptions
-    )
-
-    return true
-  }
-
-  // MARK: - Push Notification Handlers
-
-  func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    // Convert token to string for logging
-    let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }
-    let token = tokenParts.joined()
-    print("Device Token: \(token)")
-
-    // Pass token to Firebase Cloud Messaging
-    Messaging.messaging().apnsToken = deviceToken
-  }
-
-  func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-    print("Failed to register for remote notifications: \(error.localizedDescription)")
-  }
-
-  // Handle notification when app is in foreground or background
-  func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-                   fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-    print("Received remote notification: \(userInfo)")
-
-    // Let Firebase handle its notifications
-    if Auth.auth().canHandleNotification(userInfo) {
-      completionHandler(.noData)
-      return
-    }
-
-    // Handle your app's custom notifications here
-    completionHandler(.newData)
-  }
-}
-
-// MARK: - UNUserNotificationCenterDelegate
-extension AppDelegate: UNUserNotificationCenterDelegate {
-  // Called when app receives notification while in foreground
-  func userNotificationCenter(_ center: UNUserNotificationCenter,
-                            willPresent notification: UNNotification,
-                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-    let userInfo = notification.request.content.userInfo
-    print("Will present notification: \(userInfo)")
-
-    // Let Firebase handle its notifications silently
-    if Auth.auth().canHandleNotification(userInfo) {
-      completionHandler([])
-      return
-    }
-
-    // Show notification even when app is in foreground
-    completionHandler([[.banner, .badge, .sound]])
-  }
-
-  // Called when user taps on notification
-  func userNotificationCenter(_ center: UNUserNotificationCenter,
-                            didReceive response: UNNotificationResponse,
-                            withCompletionHandler completionHandler: @escaping () -> Void) {
-    let userInfo = response.notification.request.content.userInfo
-    print("User tapped notification: \(userInfo)")
-
-    // Let Firebase handle its notifications
-    if Auth.auth().canHandleNotification(userInfo) {
-      completionHandler()
-      return
-    }
-
-    // Handle your app's custom notification tap here
-    // e.g., navigate to specific screen based on notification data
-
-    completionHandler()
-  }
-}
-
-class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
-  override func sourceURL(for bridge: RCTBridge) -> URL? {
-    self.bundleURL()
+    return result
   }
 
   override func bundleURL() -> URL? {
+    print("=== bundleURL() called")
 #if DEBUG
-    RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+    print("=== DEBUG mode")
+    let url = RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+    print("=== Bundle URL: \(String(describing: url))")
+    return url
 #else
-    Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+    print("=== RELEASE mode - looking for main.jsbundle")
+    guard let url = Bundle.main.url(forResource: "main", withExtension: "jsbundle") else {
+      print("=== FATAL ERROR: main.jsbundle not found!")
+      fatalError("Could not find main.jsbundle in release build")
+    }
+
+    if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 {
+      print("=== Bundle found, size: \(size / 1024)KB")
+    }
+    print("=== Bundle URL: \(url.path)")
+    return url
 #endif
+  }
+
+  // MARK: - UNUserNotificationCenterDelegate Methods
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    print("=== Notification received in foreground")
+    completionHandler([.banner, .sound, .badge])
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    print("=== User tapped notification")
+    completionHandler()
+  }
+
+  // MARK: - Remote Notifications
+
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    Messaging.messaging().apnsToken = deviceToken
+    print("=== APNS token registered")
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    print("=== Failed to register for remote notifications: \(error.localizedDescription)")
   }
 }

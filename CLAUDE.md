@@ -1,0 +1,3 @@
+- 4. Rebuild
+  xcodebuild -workspace MethodOnlineTracker.xcworkspace -scheme MethodOnlineTracker -configuration Release -destination 'platform=iOS,name=Nismal'\''s iPhone']
+Except this step do everything needed properly, do changes wherever we need, remove unsued, unwanted codes, files, give me proper clean realease ready code now, make no mistakes pls, properly do the needed changes, dont complicate things, only in proper way  make things perfect pls

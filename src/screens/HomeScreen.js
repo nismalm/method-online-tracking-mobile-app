@@ -1,5 +1,5 @@
 import React, {useState, useCallback} from 'react';
-import {View, Text, ScrollView, TouchableOpacity} from 'react-native';
+import {View, Text, ScrollView, TouchableOpacity, StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import AuthService from '../services/authService';
@@ -11,20 +11,21 @@ import ClientsIcon from '../../assets/icons/clientsIcon';
 import TrainerIcon from '../../assets/icons/trainerIcon';
 import LiveIcon from '../../assets/icons/liveIcon';
 import PauseIcon from '../../assets/icons/pauseIcon';
+import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 // Memoized to prevent unnecessary re-renders
 const StatCard = React.memo(({title, value, IconComponent}) => (
-  <View className="bg-gray-50 rounded-2xl p-4 flex-1 mx-1">
-    <View className="flex-row items-start justify-between">
-      <View className="flex-1">
-        <Text className="text-4xl font-barlow-bold mb-2 text-brand-dark">
+  <View style={styles.statCard}>
+    <View style={styles.statCardContent}>
+      <View style={styles.statCardTextContainer}>
+        <Text style={styles.statValue}>
           {value}
         </Text>
-        <Text className="text-sm font-barlow text-brand-text-secondary">
+        <Text style={styles.statTitle}>
           {title}
         </Text>
       </View>
-      <View className="ml-2">
+      <View style={styles.statIconContainer}>
         <IconComponent width={32} height={32} fill="#1E293B" />
       </View>
     </View>
@@ -34,14 +35,14 @@ const StatCard = React.memo(({title, value, IconComponent}) => (
 // Memoized to prevent unnecessary re-renders
 const QuickActionCard = React.memo(({IconComponent, label, onPress, fullWidth = false}) => (
   <TouchableOpacity
-    className={`rounded-2xl p-5 mb-3 bg-brand-primary ${fullWidth ? 'w-full' : 'flex-1'}`}
+    style={[styles.quickActionCard, fullWidth && styles.quickActionCardFull]}
     onPress={onPress}
     activeOpacity={0.7}>
-    <View className="flex-row items-center">
-      <View className="w-12 h-12 rounded-full items-center justify-center mr-4 bg-brand-darkest">
-        <IconComponent width={24} height={24} fill="#ffffff" stroke="#ffffff" />
+    <View style={styles.quickActionContent}>
+      <View style={styles.quickActionIcon}>
+        <IconComponent width={24} height={24} fill={COLORS.white} stroke={COLORS.white} />
       </View>
-      <Text className="font-barlow-semibold text-base flex-1 text-brand-dark">
+      <Text style={styles.quickActionLabel}>
         {label}
       </Text>
     </View>
@@ -84,9 +85,9 @@ const HomeScreen = () => {
   }, [fetchTrainersCount]);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-      <ScrollView className="flex-1">
-        <View className="px-6 py-8 pt-2">
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
           {/* Header */}
           <Header
             subtitle="Welcome back,"
@@ -94,30 +95,30 @@ const HomeScreen = () => {
           />
 
           {/* Stats Section */}
-          <Text className="text-lg font-barlow-semibold mb-4 text-brand-darkest">
+          <Text style={styles.sectionTitle}>
             Overview
           </Text>
-          <View className="flex-row mb-3">
+          <View style={styles.statsRow}>
             <StatCard title="Total Clients" value="45" IconComponent={ClientsIcon} />
             <StatCard title="Trainers" value={trainersCount.toString()} IconComponent={TrainerIcon} />
           </View>
-          <View className="flex-row mb-6">
+          <View style={[styles.statsRow, styles.statsRowLast]}>
             <StatCard title="Active Clients" value="38" IconComponent={LiveIcon} />
             <StatCard title="Paused Clients" value="7" IconComponent={PauseIcon} />
           </View>
 
           {/* Quick Actions */}
-          <Text className="text-lg font-barlow-semibold mb-4 text-brand-darkest">
+          <Text style={styles.sectionTitle}>
             Quick Actions
           </Text>
 
-          <View className="flex-row mb-3">
+          <View style={styles.quickActionsRow}>
             <QuickActionCard
               IconComponent={AddIcon}
               label="Add Client"
               onPress={() => console.log('Add Client')}
             />
-            <View className="w-3" />
+            <View style={styles.quickActionSpacer} />
             <QuickActionCard
               IconComponent={AddIcon}
               label="Add Trainer"
@@ -143,5 +144,99 @@ const HomeScreen = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    paddingTop: 8,
+  },
+  sectionTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontFamily: FONTS.semiBold,
+    marginBottom: 16,
+    color: COLORS.brandDarkest,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  statsRowLast: {
+    marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: COLORS.gray50,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 16,
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  statCardContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  statCardTextContainer: {
+    flex: 1,
+  },
+  statValue: {
+    fontSize: FONT_SIZES['4xl'],
+    fontFamily: FONTS.bold,
+    marginBottom: 8,
+    color: COLORS.brandDark,
+  },
+  statTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+  },
+  statIconContainer: {
+    marginLeft: 8,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  quickActionSpacer: {
+    width: 12,
+  },
+  quickActionCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 20,
+    marginBottom: 12,
+    backgroundColor: COLORS.brandPrimary,
+    flex: 1,
+  },
+  quickActionCardFull: {
+    width: '100%',
+    flex: undefined,
+  },
+  quickActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    backgroundColor: COLORS.brandDarkest,
+  },
+  quickActionLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: FONT_SIZES.base,
+    flex: 1,
+    color: COLORS.brandDark,
+  },
+});
 
 export default HomeScreen;

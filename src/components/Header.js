@@ -1,28 +1,56 @@
 import React from 'react';
-import {View, Text, Image} from 'react-native';
+import {View, Text, Image, StyleSheet} from 'react-native';
+import {COLORS, FONTS, FONT_SIZES} from '../constants/theme';
 
 const Header = ({title, subtitle}) => {
   return (
-    <View className="flex-row items-center justify-between mb-6">
-      <View className="flex-1">
+    <View style={styles.container}>
+      <View style={styles.textContainer}>
         {subtitle && (
-          <Text className="text-sm font-barlow mb-1 text-brand-text-secondary">
+          <Text style={styles.subtitle}>
             {subtitle}
           </Text>
         )}
         {title && (
-          <Text className="text-3xl font-barlow-bold text-brand-darkest">
+          <Text style={styles.title}>
             {title}
           </Text>
         )}
       </View>
       <Image
         source={require('../../assets/logo/method_logo_lg.png')}
-        className="w-[100px] h-[60px]"
+        style={styles.logo}
         resizeMode="contain"
       />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  subtitle: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    marginBottom: 4,
+    color: COLORS.brandTextSecondary,
+  },
+  title: {
+    fontSize: FONT_SIZES['3xl'],
+    fontFamily: FONTS.bold,
+    color: COLORS.brandDarkest,
+  },
+  logo: {
+    width: 100,
+    height: 60,
+  },
+});
 
 export default Header;
