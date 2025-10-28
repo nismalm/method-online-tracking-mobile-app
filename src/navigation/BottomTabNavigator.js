@@ -57,9 +57,8 @@ const TabIcon = React.memo(({focused, routeName}) => {
 const BottomTabNavigator = () => {
   const {isSuperAdmin, isTrainer} = useAuth();
 
-  // Memoize the isSuperAdmin and isTrainer checks to avoid re-computation
+  // Memoize the isSuperAdmin check to avoid re-computation
   const showTrainersTab = useMemo(() => isSuperAdmin(), [isSuperAdmin]);
-  const showHomeTab = useMemo(() => !isTrainer(), [isTrainer]);
 
   const renderTabIcon = useCallback(
     ({focused, route}) => <TabIcon focused={focused} routeName={route.name} />,
@@ -92,8 +91,8 @@ const BottomTabNavigator = () => {
         ...screenOptions,
         tabBarIcon: ({focused}) => getTabBarIcon({focused, route}),
       })}>
-      {/* Home tab - Only visible to non-trainers (SuperAdmin) */}
-      {showHomeTab && <Tab.Screen name="Home" component={HomeScreen} />}
+      {/* Home tab - Visible to all users */}
+      <Tab.Screen name="Home" component={HomeScreen} />
 
       <Tab.Screen name="Clients" component={ClientsScreen} />
 

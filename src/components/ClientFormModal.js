@@ -13,6 +13,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {TextInput, Button, Dropdown} from '../components';
 import ClientService from '../services/clientService';
+import * as DayCalculator from '../utils/dayCalculator';
 import {useAuth} from '../context/AuthContext';
 import {
   PACKAGE_OPTIONS,
@@ -233,6 +234,36 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
     try {
       if (isEditMode) {
+        const packageDays = parseInt(formData.packageType.trim(), 10);
+        const newStartDate = formatDate(startDate);
+        const newEndDate = DayCalculator.calculateEndDate(newStartDate, packageDays);
+
+        // Calculate what the status should be based on the new dates
+        // Create a temporary client object to analyze
+        const tempClient = {
+          ...client,
+          startDate: newStartDate,
+          endDate: newEndDate,
+          package: packageDays,
+          pauseHistory: client.pauseHistory || [],
+        };
+
+        // Get day analysis to determine correct status
+        const dayAnalysis = DayCalculator.getClientDayAnalysis(tempClient);
+
+        // Determine new status
+        let newStatus = client.status;
+
+        // Only auto-update status if client is currently active or completed
+        // Don't change status if paused or stopped (those are manual states)
+        if (client.status === 'active' || client.status === 'completed') {
+          if (dayAnalysis.isCompleted) {
+            newStatus = 'completed';
+          } else {
+            newStatus = 'active';
+          }
+        }
+
         // Update existing client
         const updateData = {
           name: formData.name.trim(),
@@ -242,10 +273,11 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           bloodGroup: formData.bloodGroup.trim(),
           height: parseFloat(formData.height.trim()),
           startingWeight: parseFloat(formData.startingWeight.trim()),
-          package: parseInt(formData.packageType.trim(), 10),
+          package: packageDays,
           trainingMode: formData.trainingMode.trim(),
-          startDate: formatDate(startDate),
-          endDate: clientService.calculateEndDate(startDate, parseInt(formData.packageType.trim(), 10)),
+          startDate: newStartDate,
+          endDate: newEndDate,
+          status: newStatus,
         };
 
         const result = await clientService.updateClient(client.id, updateData);

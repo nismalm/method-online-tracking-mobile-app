@@ -1,13 +1,18 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useAuth} from '../context/AuthContext';
 import Header from '../components/Header';
 import TextInput from '../components/TextInput';
 import FloatingActionButton from '../components/FloatingActionButton';
 import Dropdown from '../components/Dropdown';
 import ClientFormModal from '../components/ClientFormModal';
+import {StopModal, RenewalModal} from '../components';
 import ClientService from '../services/clientService';
+import AuthService from '../services/authService';
 import {calculateBMI} from '../utils/bmiCalculator';
+import * as DayCalculator from '../utils/dayCalculator';
+import {STATUS_COLORS} from '../constants/formOptions';
 import AddIcon from '../../assets/icons/addIcon';
 import UserIcon from '../../assets/icons/userIcon';
 import SearchIcon from '../../assets/icons/searchIcon';
@@ -15,19 +20,17 @@ import PauseIcon from '../../assets/icons/pauseIcon';
 import PlayIcon from '../../assets/icons/playIcon';
 import TrashIcon from '../../assets/icons/trashIcon';
 import EditIcon from '../../assets/icons/editIcon';
+import RenewalIcon from '../../assets/icons/renewalIcon';
+import StopIcon from '../../assets/icons/stopIcon';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
-const ClientCard = ({client, onPause, onResume, onDelete, onEdit}) => {
+const ClientCard = ({client, onPause, onResume, onDelete, onEdit, onRenew, onStop}) => {
   // Calculate BMI on demand
   const clientBMI = calculateBMI(client.startingWeight, client.height);
-  
-  // Calculate day count using static methods
-  const daysUsed = ClientService.calculateDaysUsed(client.startDate, client.status);
-  const daysRemaining = ClientService.calculateDaysRemaining(client.startDate, client.package, client.status);
-  
-  // Fallback for invalid dates
-  const displayDaysUsed = (typeof daysUsed === 'number' && !isNaN(daysUsed)) ? daysUsed : 'N/A';
-  const displayDaysRemaining = (typeof daysRemaining === 'number' && !isNaN(daysRemaining)) ? daysRemaining : daysRemaining;
+
+  // Get complete day analysis
+  const dayAnalysis = DayCalculator.getClientDayAnalysis(client);
+  const displayTexts = DayCalculator.getDayDisplayText(dayAnalysis);
   
   const handlePause = () => {
     Alert.alert(
@@ -63,9 +66,7 @@ const ClientCard = ({client, onPause, onResume, onDelete, onEdit}) => {
   };
 
   const getStatusColor = () => {
-    if (client.status === 'active') return COLORS.brandSecondary;
-    if (client.status === 'paused') return '#EAB308';
-    return COLORS.brandTextSecondary;
+    return STATUS_COLORS[client.status] || COLORS.brandTextSecondary;
   };
   
   return (
@@ -73,9 +74,9 @@ const ClientCard = ({client, onPause, onResume, onDelete, onEdit}) => {
       style={styles.clientCard}
       onPress={() => console.log('View client:', client.name)}>
       <View style={styles.clientHeader}>
-        <View style={styles.clientAvatar}>
+        {/* <View style={styles.clientAvatar}>
           <UserIcon width={24} height={24} stroke={COLORS.brandDarkest} />
-        </View>
+        </View> */}
         <View style={styles.clientInfo}>
           <Text style={styles.clientName}>
             {client.name}
@@ -91,33 +92,55 @@ const ClientCard = ({client, onPause, onResume, onDelete, onEdit}) => {
           <TouchableOpacity
             onPress={() => onEdit(client)}
             style={[styles.actionButton, styles.editButton]}>
-            <EditIcon width={16} height={16} stroke="#3B82F6" />
+            <EditIcon width={16} height={16} stroke={COLORS.brandDarkest} />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={client.status === 'active' ? handlePause : handleResume}
-            style={[styles.actionButton, styles.pauseButton]}>
-            {client.status === 'active' ? (
-              <PauseIcon width={16} height={16} fill="#F59E0B" />
-            ) : (
-              <PlayIcon width={16} height={16} stroke="#10B981" />
-            )}
-          </TouchableOpacity>
+
+          {/* Pause/Resume button (for active/paused) */}
+          {(client.status === 'active' || client.status === 'paused') && (
+            <TouchableOpacity
+              onPress={client.status === 'active' ? handlePause : handleResume}
+              style={[styles.actionButton, styles.editButton]}>
+              {client.status === 'active' ? (
+                <PauseIcon width={16} height={16} fill={COLORS.brandDarkest}/>
+              ) : (
+                <PlayIcon width={16} height={16} fill={COLORS.brandDarkest} stroke={COLORS.brandDarkest} />
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Renewal button (for completed/stopped) */}
+          {(client.status === 'completed' || client.status === 'stopped') && (
+            <TouchableOpacity
+              onPress={() => onRenew(client)}
+              style={[styles.actionButton, styles.editButton]}>
+              <RenewalIcon width={16} height={16} stroke={COLORS.brandDarkest} />
+            </TouchableOpacity>
+          )}
+
+          {/* Stop button (for active/paused) */}
+          {(client.status === 'active' || client.status === 'paused') && (
+            <TouchableOpacity
+              onPress={() => onStop(client)}
+              style={[styles.actionButton, styles.editButton]}>
+              <StopIcon width={16} height={16} stroke="" />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={handleDelete}
-            style={[styles.actionButton, styles.deleteButton]}>
-            <TrashIcon width={16} height={16} stroke="#EF4444" />
+            style={[styles.actionButton, styles.editButton]}>
+            <TrashIcon width={16} height={16} stroke={COLORS.brandDark} />
           </TouchableOpacity>
         </View>
       </View>
-      
       {/* Day Count Display */}
       <View style={styles.dayCountContainer}>
         <View style={styles.dayCountRow}>
           <Text style={styles.dayCountText}>
-            Day: {displayDaysUsed}
+            {displayTexts.dayText}
           </Text>
           <Text style={styles.dayCountText}>
-            Remaining: {displayDaysRemaining}
+            {displayTexts.remainingText}
           </Text>
         </View>
       </View>
@@ -217,15 +240,22 @@ const ClientCard = ({client, onPause, onResume, onDelete, onEdit}) => {
 };
 
 const ClientsScreen = () => {
+  const {user, isSuperAdmin} = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('active'); // Changed default from 'all' to 'active'
+  const [filterTrainer, setFilterTrainer] = useState('all');
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
+  const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
   const [selectedClient, setSelectedClient] = useState(null);
+  const [showStopModal, setShowStopModal] = useState(false);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [clientToStop, setClientToStop] = useState(null);
+  const [clientToRenew, setClientToRenew] = useState(null);
 
   // Create service instance for non-static methods
   const clientService = new ClientService();
@@ -235,18 +265,43 @@ const ClientsScreen = () => {
     {label: 'Active', value: 'active'},
     {label: 'Paused', value: 'paused'},
     {label: 'Completed', value: 'completed'},
-    {label: 'Renewed', value: 'renewed'},
+    {label: 'Stopped', value: 'stopped'},
   ];
+
+  // Load trainers list (only for super admins)
+  const loadTrainers = async () => {
+    if (!isSuperAdmin()) return;
+
+    try {
+      const result = await AuthService.getAllTrainers();
+      if (result.success) {
+        setTrainers(result.trainers);
+      }
+    } catch (error) {
+      console.error('Load trainers error:', error);
+    }
+  };
 
   // Load clients from Firebase
   const loadClients = async () => {
     try {
       setLoading(true);
-      const result = await clientService.getAllClients();
-      
+      let result;
+
+      // For non-admins (trainers), only load their own clients
+      if (!isSuperAdmin()) {
+        result = await clientService.getClientsByTrainer(user?.uid);
+      } else {
+        result = await clientService.getAllClients();
+      }
+
       if (result.success) {
         setClients(result.clients);
         setFilteredClients(result.clients);
+
+        // Background task: Check and update status for active/paused clients
+        // This runs after clients are displayed, so it doesn't block UI
+        checkClientStatuses(result.clients);
       } else {
         console.error('Failed to load clients:', result.error);
       }
@@ -257,7 +312,42 @@ const ClientsScreen = () => {
     }
   };
 
-  // Filter clients based on search and status
+  // Background task to check and update client statuses
+  const checkClientStatuses = async (clientsList) => {
+    try {
+      let statusUpdated = false;
+
+      // Check each active or paused client
+      for (const client of clientsList) {
+        if (client.status === 'active' || client.status === 'paused') {
+          const result = await clientService.checkAndUpdateClientStatus(client.id);
+          if (result.success && result.updated) {
+            statusUpdated = true;
+          }
+        }
+      }
+
+      // If any status was updated, silently refresh the list
+      if (statusUpdated) {
+        let result;
+        if (!isSuperAdmin()) {
+          result = await clientService.getClientsByTrainer(user?.uid);
+        } else {
+          result = await clientService.getAllClients();
+        }
+
+        if (result.success) {
+          setClients(result.clients);
+          setFilteredClients(result.clients);
+        }
+      }
+    } catch (error) {
+      console.error('Check client statuses error:', error);
+      // Silently fail - don't show error to user
+    }
+  };
+
+  // Filter clients based on search, status, and trainer
   const filterClients = () => {
     let filtered = clients;
 
@@ -273,6 +363,11 @@ const ClientsScreen = () => {
     // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter(client => client.status === filterStatus);
+    }
+
+    // Filter by trainer (only for super admins)
+    if (isSuperAdmin() && filterTrainer !== 'all') {
+      filtered = filtered.filter(client => client.createdBy === filterTrainer);
     }
 
     setFilteredClients(filtered);
@@ -359,15 +454,66 @@ const ClientsScreen = () => {
     }
   };
 
-  // Load clients on component mount
+  // Handle stop client
+  const handleStopClient = (client) => {
+    setClientToStop(client);
+    setShowStopModal(true);
+  };
+
+  const confirmStopClient = async (reason) => {
+    if (!clientToStop) return;
+
+    try {
+      const result = await clientService.stopClient(clientToStop.id, reason);
+      if (result.success) {
+        Alert.alert('Success', 'Client package stopped successfully');
+        setShowStopModal(false);
+        setClientToStop(null);
+        loadClients();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to stop client');
+      }
+    } catch (error) {
+      console.error('Stop client error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  // Handle renew client
+  const handleRenewClient = (client) => {
+    setClientToRenew(client);
+    setShowRenewalModal(true);
+  };
+
+  const confirmRenewClient = async (newPackage) => {
+    if (!clientToRenew) return;
+
+    try {
+      const result = await clientService.renewClient(clientToRenew.id, newPackage);
+      if (result.success) {
+        Alert.alert('Success', 'Client package renewed successfully');
+        setShowRenewalModal(false);
+        setClientToRenew(null);
+        loadClients();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to renew client');
+      }
+    } catch (error) {
+      console.error('Renew client error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  // Load clients and trainers on component mount
   useEffect(() => {
     loadClients();
+    loadTrainers();
   }, []);
 
-  // Filter clients when search query or status changes
+  // Filter clients when search query, status, or trainer filter changes
   useEffect(() => {
     filterClients();
-  }, [searchQuery, filterStatus, clients]);
+  }, [searchQuery, filterStatus, filterTrainer, clients]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -387,17 +533,52 @@ const ClientsScreen = () => {
         </View>
 
         {/* Filters */}
-        <View style={styles.filterContainer}>
-          <Dropdown
-            label="Filter By Status"
-            value={filterStatus}
-            onValueChange={setFilterStatus}
-            items={statusOptions}
-            placeholder="Select status"
-            searchable={true}
-            searchPlaceholder="Search status..."
-          />
-        </View>
+        {isSuperAdmin() ? (
+          // Super Admin: 2-column grid layout
+          <View style={styles.filtersRow}>
+            <View style={styles.filterHalf}>
+              <Dropdown
+                label="Filter By Status"
+                value={filterStatus}
+                onValueChange={setFilterStatus}
+                items={statusOptions}
+                placeholder="Select status"
+                searchable={true}
+                searchPlaceholder="Search status..."
+              />
+            </View>
+            <View style={styles.filterHalf}>
+              <Dropdown
+                label="Filter By Trainer"
+                value={filterTrainer}
+                onValueChange={setFilterTrainer}
+                items={[
+                  {label: 'All Trainers', value: 'all'},
+                  ...trainers.map(trainer => ({
+                    label: trainer.name,
+                    value: trainer.uid,
+                  })),
+                ]}
+                placeholder="Select trainer"
+                searchable={true}
+                searchPlaceholder="Search trainer..."
+              />
+            </View>
+          </View>
+        ) : (
+          // Trainer: Full width layout
+          <View style={styles.filterContainer}>
+            <Dropdown
+              label="Filter By Status"
+              value={filterStatus}
+              onValueChange={setFilterStatus}
+              items={statusOptions}
+              placeholder="Select status"
+              searchable={true}
+              searchPlaceholder="Search status..."
+            />
+          </View>
+        )}
 
         {/* Client List */}
         <Text style={styles.listTitle}>
@@ -429,6 +610,8 @@ const ClientsScreen = () => {
                 onResume={handleResumeClient}
                 onDelete={handleDeleteClient}
                 onEdit={handleEditClient}
+                onRenew={handleRenewClient}
+                onStop={handleStopClient}
               />
             ))
           )}
@@ -450,6 +633,28 @@ const ClientsScreen = () => {
         client={selectedClient}
         mode={modalMode}
       />
+
+      {/* Stop Modal */}
+      <StopModal
+        visible={showStopModal}
+        onClose={() => {
+          setShowStopModal(false);
+          setClientToStop(null);
+        }}
+        onConfirm={confirmStopClient}
+        clientName={clientToStop?.name}
+      />
+
+      {/* Renewal Modal */}
+      <RenewalModal
+        visible={showRenewalModal}
+        onClose={() => {
+          setShowRenewalModal(false);
+          setClientToRenew(null);
+        }}
+        onConfirm={confirmRenewClient}
+        client={clientToRenew}
+      />
     </SafeAreaView>
   );
 };
@@ -470,6 +675,14 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     marginBottom: 24,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    gap: 12,
+  },
+  filterHalf: {
+    flex: 1,
   },
   listTitle: {
     fontSize: FONT_SIZES.lg,
@@ -522,6 +735,7 @@ const styles = StyleSheet.create({
   },
   clientInfo: {
     flex: 1,
+    marginLeft: 5
   },
   clientName: {
     fontSize: FONT_SIZES.lg,
@@ -555,16 +769,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
   },
   editButton: {
-    backgroundColor: '#DBEAFE',
-  },
-  pauseButton: {
-    backgroundColor: COLORS.gray100,
-  },
-  deleteButton: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.brandPrimary,
   },
   dayCountContainer: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brandPrimary,
     borderRadius: BORDER_RADIUS.md,
     padding: 12,
     marginBottom: 12,
@@ -577,7 +785,7 @@ const styles = StyleSheet.create({
   dayCountText: {
     fontSize: FONT_SIZES.sm,
     fontFamily: FONTS.medium,
-    color: '#1E3A8A',
+    color: COLORS.brandDarkest,
   },
   detailsRow: {
     flexDirection: 'row',

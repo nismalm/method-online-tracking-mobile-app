@@ -49,15 +49,15 @@ const Dropdown = ({
       borderColor: COLORS.brandBorder, 
       color: COLORS.black,
       fontFamily: FONTS.regular, 
-      marginHorizontal: 12, 
+      marginHorizontal: 5, 
       marginVertical: 8,
       backgroundColor: COLORS.white
     },
     container: { borderRadius: 12, borderWidth: 0, marginTop: 4 },
     item: { fontSize: 16, color: COLORS.black, fontFamily: FONTS.regular },
     itemContainer: { 
-      paddingVertical: 2, 
-      paddingHorizontal: 16, 
+      paddingVertical: 1, 
+      paddingHorizontal: 1, 
       borderBottomWidth: 0.5, 
       borderBottomColor: '#f0f0f0' 
     }

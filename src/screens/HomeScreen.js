@@ -3,9 +3,11 @@ import {View, Text, ScrollView, TouchableOpacity, StyleSheet} from 'react-native
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 import AuthService from '../services/authService';
+import ClientService from '../services/clientService';
 import {useAuth} from '../context/AuthContext';
 import Header from '../components/Header';
 import AddTrainerModal from '../components/AddTrainerModal';
+import ClientFormModal from '../components/ClientFormModal';
 import AddIcon from '../../assets/icons/addIcon';
 import ClientsIcon from '../../assets/icons/clientsIcon';
 import TrainerIcon from '../../assets/icons/trainerIcon';
@@ -50,9 +52,15 @@ const QuickActionCard = React.memo(({IconComponent, label, onPress, fullWidth = 
 ));
 
 const HomeScreen = () => {
-  const {userProfile, isSuperAdmin} = useAuth();
+  const {user, userProfile, isSuperAdmin} = useAuth();
   const [trainersCount, setTrainersCount] = useState(0);
+  const [clientCounts, setClientCounts] = useState({
+    total: 0,
+    active: 0,
+    paused: 0,
+  });
   const [showAddTrainerModal, setShowAddTrainerModal] = useState(false);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
 
   // Fetch trainers count (memoized)
   const fetchTrainersCount = useCallback(async () => {
@@ -66,23 +74,70 @@ const HomeScreen = () => {
     }
   }, []);
 
+  // Fetch client counts (memoized)
+  const fetchClientCounts = useCallback(async () => {
+    try {
+      if (!user?.uid) return;
+
+      const clientService = new ClientService();
+
+      // First get all clients to check statuses
+      let clientsResult;
+      if (isAdmin()) {
+        clientsResult = await clientService.getAllClients();
+      } else {
+        clientsResult = await clientService.getClientsByTrainer(user.uid);
+      }
+
+      // Background check and update statuses
+      if (clientsResult.success) {
+        let statusUpdated = false;
+        for (const client of clientsResult.clients) {
+          if (client.status === 'active' || client.status === 'paused') {
+            const checkResult = await clientService.checkAndUpdateClientStatus(client.id);
+            if (checkResult.success && checkResult.updated) {
+              statusUpdated = true;
+            }
+          }
+        }
+      }
+
+      // Now fetch counts (will include any updated statuses)
+      const result = await clientService.getClientCounts(user.uid, isAdmin());
+
+      if (result.success) {
+        setClientCounts(result.counts);
+      }
+    } catch (error) {
+      console.error('Error fetching client counts:', error);
+    }
+  }, [user?.uid, isAdmin]);
+
   // Check if user is SuperAdmin (memoized to prevent re-computation)
   const isAdmin = useCallback(() => isSuperAdmin(), [isSuperAdmin]);
 
   // Refresh data whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      // Fetch client counts for all users
+      fetchClientCounts();
+
       // Only fetch trainers count if user is SuperAdmin
       if (isAdmin()) {
         fetchTrainersCount();
       }
-    }, [isAdmin, fetchTrainersCount])
+    }, [isAdmin, fetchTrainersCount, fetchClientCounts])
   );
 
   // Handler when trainer is added (memoized)
   const handleTrainerAdded = useCallback(() => {
     fetchTrainersCount(); // Refresh the count
   }, [fetchTrainersCount]);
+
+  // Handler when client is added (memoized)
+  const handleClientAdded = useCallback(() => {
+    fetchClientCounts(); // Refresh the counts
+  }, [fetchClientCounts]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -99,12 +154,14 @@ const HomeScreen = () => {
             Overview
           </Text>
           <View style={styles.statsRow}>
-            <StatCard title="Total Clients" value="45" IconComponent={ClientsIcon} />
-            <StatCard title="Trainers" value={trainersCount.toString()} IconComponent={TrainerIcon} />
+            <StatCard title="Total Clients" value={clientCounts.total.toString()} IconComponent={ClientsIcon} />
+            {isAdmin() && (
+              <StatCard title="Trainers" value={trainersCount.toString()} IconComponent={TrainerIcon} />
+            )}
           </View>
           <View style={[styles.statsRow, styles.statsRowLast]}>
-            <StatCard title="Active Clients" value="38" IconComponent={LiveIcon} />
-            <StatCard title="Paused Clients" value="7" IconComponent={PauseIcon} />
+            <StatCard title="Active Clients" value={clientCounts.active.toString()} IconComponent={LiveIcon} />
+            <StatCard title="Paused Clients" value={clientCounts.paused.toString()} IconComponent={PauseIcon} />
           </View>
 
           {/* Quick Actions */}
@@ -112,34 +169,55 @@ const HomeScreen = () => {
             Quick Actions
           </Text>
 
-          <View style={styles.quickActionsRow}>
+          {isAdmin() ? (
+            <View style={styles.quickActionsRow}>
+              <QuickActionCard
+                IconComponent={AddIcon}
+                label="Add Client"
+                onPress={() => setShowAddClientModal(true)}
+              />
+              <View style={styles.quickActionSpacer} />
+              <QuickActionCard
+                IconComponent={AddIcon}
+                label="Add Trainer"
+                onPress={() => setShowAddTrainerModal(true)}
+              />
+            </View>
+          ) : (
             <QuickActionCard
               IconComponent={AddIcon}
               label="Add Client"
-              onPress={() => console.log('Add Client')}
+              onPress={() => setShowAddClientModal(true)}
+              fullWidth={true}
             />
-            <View style={styles.quickActionSpacer} />
+          )}
+
+          {isAdmin() && (
             <QuickActionCard
               IconComponent={AddIcon}
-              label="Add Trainer"
-              onPress={() => setShowAddTrainerModal(true)}
+              label="Diet Chart Generator"
+              onPress={() => console.log('Diet Chart Generator')}
+              fullWidth={true}
             />
-          </View>
-
-          <QuickActionCard
-            IconComponent={AddIcon}
-            label="Diet Chart Generator"
-            onPress={() => console.log('Diet Chart Generator')}
-            fullWidth={true}
-          />
+          )}
         </View>
       </ScrollView>
 
-      {/* Add Trainer Modal */}
-      <AddTrainerModal
-        visible={showAddTrainerModal}
-        onClose={() => setShowAddTrainerModal(false)}
-        onTrainerAdded={handleTrainerAdded}
+      {/* Add Trainer Modal - Only for SuperAdmin */}
+      {isAdmin() && (
+        <AddTrainerModal
+          visible={showAddTrainerModal}
+          onClose={() => setShowAddTrainerModal(false)}
+          onTrainerAdded={handleTrainerAdded}
+        />
+      )}
+
+      {/* Add Client Modal - For all users */}
+      <ClientFormModal
+        visible={showAddClientModal}
+        onClose={() => setShowAddClientModal(false)}
+        onClientAdded={handleClientAdded}
+        mode="add"
       />
     </SafeAreaView>
   );

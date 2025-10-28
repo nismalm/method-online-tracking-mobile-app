@@ -35,6 +35,22 @@ export const TRAINING_MODE_OPTIONS = [
   {label: 'Offline', value: 'Offline'},
 ];
 
+// Client status options
+export const STATUS_OPTIONS = [
+  {label: 'Active', value: 'active'},
+  {label: 'Paused', value: 'paused'},
+  {label: 'Completed', value: 'completed'},
+  {label: 'Stopped', value: 'stopped'},
+];
+
+// Status color mapping
+export const STATUS_COLORS = {
+  active: '#22c55e',
+  paused: '#EAB308',
+  completed: '#3B82F6',
+  stopped: '#ef4444',
+};
+
 // Validation rules for form fields
 export const VALIDATION_RULES = {
   name: {
