@@ -12,7 +12,7 @@ import ProfileIcon from '../../assets/icons/profileIcon';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
-import ClientsScreen from '../screens/ClientsScreen';
+import ClientsStackNavigator from './ClientsStackNavigator';
 import TrainersScreen from '../screens/TrainersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -94,7 +94,7 @@ const BottomTabNavigator = () => {
       {/* Home tab - Visible to all users */}
       <Tab.Screen name="Home" component={HomeScreen} />
 
-      <Tab.Screen name="Clients" component={ClientsScreen} />
+      <Tab.Screen name="Clients" component={ClientsStackNavigator} />
 
       {/* Trainers tab - Only visible to SuperAdmin */}
       {showTrainersTab && (

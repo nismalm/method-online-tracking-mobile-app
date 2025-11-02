@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useMemo, useEffect} from 'react';
+import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,17 @@ import {
   Platform,
   Alert,
   StyleSheet,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import {captureRef} from 'react-native-view-shot';
+import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {TextInput, Button, Dropdown} from '../components';
 import ClientService from '../services/clientService';
 import * as DayCalculator from '../utils/dayCalculator';
 import {useAuth} from '../context/AuthContext';
+import ShareIcon from '../../assets/icons/shareIcon';
 import {
   PACKAGE_OPTIONS,
   BLOOD_GROUP_OPTIONS,
@@ -30,21 +35,27 @@ const validateField = (fieldName, value) => {
 
   switch (fieldName) {
     case 'name':
-      if (!trimmedValue) return 'Name is required';
+      if (!trimmedValue) {
+        return 'Name is required';
+      }
       if (trimmedValue.length < VALIDATION_RULES.name.minLength) {
         return 'Name must be at least 2 characters';
       }
       return '';
 
     case 'mobile':
-      if (!trimmedValue) return 'Mobile number is required';
+      if (!trimmedValue) {
+        return 'Mobile number is required';
+      }
       if (!VALIDATION_RULES.mobile.pattern.test(trimmedValue)) {
         return 'Please enter a valid mobile number with country code';
       }
       return '';
 
     case 'age':
-      if (!trimmedValue) return 'Age is required';
+      if (!trimmedValue) {
+        return 'Age is required';
+      }
       const age = parseInt(trimmedValue, 10);
       if (age < VALIDATION_RULES.age.min || age > VALIDATION_RULES.age.max) {
         return `Age must be between ${VALIDATION_RULES.age.min} and ${VALIDATION_RULES.age.max}`;
@@ -52,7 +63,9 @@ const validateField = (fieldName, value) => {
       return '';
 
     case 'height':
-      if (!trimmedValue) return 'Height is required';
+      if (!trimmedValue) {
+        return 'Height is required';
+      }
       const height = parseFloat(trimmedValue);
       if (height < VALIDATION_RULES.height.min || height > VALIDATION_RULES.height.max) {
         return `Height must be between ${VALIDATION_RULES.height.min} and ${VALIDATION_RULES.height.max} cm`;
@@ -60,7 +73,9 @@ const validateField = (fieldName, value) => {
       return '';
 
     case 'startingWeight':
-      if (!trimmedValue) return 'Starting weight is required';
+      if (!trimmedValue) {
+        return 'Starting weight is required';
+      }
       const weight = parseFloat(trimmedValue);
       if (weight < VALIDATION_RULES.weight.min || weight > VALIDATION_RULES.weight.max) {
         return `Weight must be between ${VALIDATION_RULES.weight.min} and ${VALIDATION_RULES.weight.max} kg`;
@@ -68,19 +83,27 @@ const validateField = (fieldName, value) => {
       return '';
 
     case 'gender':
-      if (!trimmedValue) return 'Gender is required';
+      if (!trimmedValue) {
+        return 'Gender is required';
+      }
       return '';
 
     case 'bloodGroup':
-      if (!trimmedValue) return 'Blood group is required';
+      if (!trimmedValue) {
+        return 'Blood group is required';
+      }
       return '';
 
     case 'packageType':
-      if (!trimmedValue) return 'Package is required';
+      if (!trimmedValue) {
+        return 'Package is required';
+      }
       return '';
 
     case 'trainingMode':
-      if (!trimmedValue) return 'Training mode is required';
+      if (!trimmedValue) {
+        return 'Training mode is required';
+      }
       return '';
 
     default:
@@ -94,17 +117,6 @@ const formatDate = (date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
-};
-
-const copyToClipboard = async (text, label) => {
-  try {
-    const Clipboard = (await import('@react-native-clipboard/clipboard')).default;
-    await Clipboard.setString(text);
-    Alert.alert('Copied!', `${label} copied to clipboard`);
-  } catch (error) {
-    console.error('Clipboard error:', error);
-    Alert.alert('Error', 'Failed to copy to clipboard');
-  }
 };
 
 const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode = 'add'}) => {
@@ -133,8 +145,50 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [createdLoginCode, setCreatedLoginCode] = useState('');
-  const [createdBMIData, setCreatedBMIData] = useState(null);
+  const [createdClientData, setCreatedClientData] = useState({
+    name: '',
+    loginCode: '',
+    bmiData: null,
+  });
+
+  // Share functionality
+  const credentialsRef = useRef();
+  const [isSharing, setIsSharing] = useState(false);
+
+  const handleShareCredentials = async () => {
+    try {
+      setIsSharing(true);
+
+      // Capture the credentials section (logo + login code + BMI) as PNG
+      const uri = await captureRef(credentialsRef, {
+        format: 'png',
+        quality: 1.0,
+      });
+
+      // Create filename with client name
+      const fileName = `${createdClientData.name.replace(/\s+/g, '_')}-Credentials.png`;
+
+      // Share the captured image using native share dialog
+      await Share.open({
+        url: `file://${uri}`,
+        title: 'Share Client Credentials',
+        message: 'Client Login Credentials for METHOD ONLINE TRACKING APPLICATION',
+        filename: fileName,
+      });
+
+      setIsSharing(false);
+    } catch (error) {
+      setIsSharing(false);
+
+      // User cancelled share - not an error
+      if (error.message && error.message.includes('User did not share')) {
+        return;
+      }
+
+      console.error('Share failed:', error);
+      Alert.alert('Error', 'Failed to share credentials. Please try again.');
+    }
+  };
 
   // Populate form data when editing
   useEffect(() => {
@@ -319,7 +373,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
         );
 
         if (result.success) {
-          handleClientCreated(result.loginCode, result.bmiAnalysis);
+          handleClientCreated(clientData.name, result.loginCode, result.bmiAnalysis);
           onClientAdded?.();
         } else {
           Alert.alert('Error', result.error || 'Failed to create client');
@@ -361,15 +415,21 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
   // Handle success modal close
   const handleSuccessModalClose = useCallback(() => {
     setShowSuccessModal(false);
-    setCreatedBMIData(null);
-    setCreatedLoginCode('');
+    setCreatedClientData({
+      name: '',
+      loginCode: '',
+      bmiData: null,
+    });
     resetForm();
   }, [resetForm]);
 
   // Handle client created
-  const handleClientCreated = useCallback((loginCode, bmiAnalysis) => {
-    setCreatedLoginCode(loginCode);
-    setCreatedBMIData(bmiAnalysis);
+  const handleClientCreated = useCallback((clientName, loginCode, bmiAnalysis) => {
+    setCreatedClientData({
+      name: clientName,
+      loginCode: loginCode,
+      bmiData: bmiAnalysis,
+    });
     onClose();
     setTimeout(() => {
       setShowSuccessModal(true);
@@ -539,19 +599,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
                   {/* iOS Inline Date Picker */}
                   {Platform.OS === 'ios' && showDatePicker && (
-                    <View style={{
-                      marginTop: 12,
-                      backgroundColor: '#ffffff',
-                      borderRadius: 16,
-                      borderWidth: 2,
-                      borderColor: '#e0fe66',
-                      padding: 16,
-                      shadowColor: '#000',
-                      shadowOffset: {width: 0, height: 2},
-                      shadowOpacity: 0.1,
-                      shadowRadius: 8,
-                      elevation: 4,
-                    }}>
+                    <View style={styles.datePickerContainer}>
                       <DateTimePicker
                         value={tempDate}
                         mode="date"
@@ -561,46 +609,20 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                         minimumDate={new Date(2020, 0, 1)}
                         themeVariant="light"
                       />
-                      <View style={{
-                        flexDirection: 'row',
-                        gap: 12,
-                        marginTop: 16,
-                      }}>
+                      <View style={styles.datePickerButtonsRow}>
                         <TouchableOpacity
                           onPress={handleIOSDateCancel}
-                          style={{
-                            flex: 1,
-                            paddingVertical: 14,
-                            paddingHorizontal: 20,
-                            backgroundColor: '#ffffff',
-                            borderWidth: 2,
-                            borderColor: '#e5e5e5',
-                            borderRadius: 12,
-                            alignItems: 'center',
-                          }}>
-                          <Text style={{
-                            fontSize: 16,
-                            fontWeight: '600',
-                            color: '#3c3c3c',
-                          }}>Cancel</Text>
+                          style={styles.datePickerCancelButton}>
+                          <Text style={styles.datePickerCancelButtonText}>
+                            Cancel
+                          </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={handleIOSDateConfirm}
-                          style={{
-                            flex: 1,
-                            paddingVertical: 14,
-                            paddingHorizontal: 20,
-                            backgroundColor: '#040404',
-                            borderWidth: 2,
-                            borderColor: '#e0fe66',
-                            borderRadius: 12,
-                            alignItems: 'center',
-                          }}>
-                          <Text style={{
-                            fontSize: 16,
-                            fontWeight: '700',
-                            color: '#e0fe66',
-                          }}>Done</Text>
+                          style={styles.datePickerConfirmButton}>
+                          <Text style={styles.datePickerConfirmButtonText}>
+                            Done
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -705,111 +727,140 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
               </Text>
             </View>
 
-            {/* Login Code */}
-            <View style={styles.loginCodeContainer}>
-              <Text style={styles.loginCodeLabel}>
-                CLIENT LOGIN CODE
-              </Text>
-              <View style={styles.loginCodeRow}>
-                <Text style={styles.loginCodeText}>
-                  {createdLoginCode}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => copyToClipboard(createdLoginCode, 'Login Code')}
-                  style={styles.copyButton}>
-                  <Text style={styles.copyButtonText}>
-                    COPY
-                  </Text>
-                </TouchableOpacity>
+            {/* Scrollable Content Area */}
+            <ScrollView
+              style={styles.scrollViewContainer}
+              showsVerticalScrollIndicator={false}
+              bounces={false}>
+              {/* Credentials Box (with Logo) - This section will be captured */}
+              <View
+                ref={credentialsRef}
+                collapsable={false}
+                style={styles.credentialsBox}>
+              {/* Logo */}
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../assets/logo/method_logo_lg.png')}
+                  style={styles.modalLogo}
+                  resizeMode="contain"
+                />
               </View>
-            </View>
 
-            {/* BMI Analysis */}
-            {createdBMIData && (
-              <View style={styles.bmiContainer}>
-                <Text style={styles.bmiTitle}>
-                  BMI ANALYSIS
+              {/* Login Code */}
+              <View style={styles.loginCodeContainer}>
+                <Text style={styles.loginCodeLabel}>
+                  CLIENT LOGIN CODE
                 </Text>
+                <Text style={styles.loginCodeText}>
+                  {createdClientData.loginCode}
+                </Text>
+              </View>
 
-                {/* BMI Score */}
-                <View style={styles.bmiRow}>
-                  <Text style={styles.bmiLabel}>
-                    BMI Score:
+              {/* BMI Analysis */}
+              {createdClientData.bmiData && (
+                <View style={styles.bmiContainer}>
+                  <Text style={styles.bmiTitle}>
+                    BMI ANALYSIS
                   </Text>
-                  <Text style={styles.bmiValue}>
-                    {createdBMIData.bmi}
-                  </Text>
-                </View>
 
-                {/* BMI Category */}
-                <View style={styles.bmiRow}>
-                  <Text style={styles.bmiLabel}>
-                    Category:
-                  </Text>
-                  <View style={styles.bmiCategoryRow}>
-                    <View
-                      style={[styles.bmiColorDot, {backgroundColor: createdBMIData.color}]}
-                    />
+                  {/* BMI Score */}
+                  <View style={styles.bmiRow}>
+                    <Text style={styles.bmiLabel}>
+                      BMI Score:
+                    </Text>
+                    <Text style={styles.bmiValue}>
+                      {createdClientData.bmiData.bmi}
+                    </Text>
+                  </View>
+
+                  {/* BMI Category */}
+                  <View style={styles.bmiRow}>
+                    <Text style={styles.bmiLabel}>
+                      Category:
+                    </Text>
+                    <View style={styles.bmiCategoryRow}>
+                      <View
+                        style={[styles.bmiColorDot, {backgroundColor: createdClientData.bmiData.color}]}
+                      />
+                      <Text style={styles.bmiCategoryText}>
+                        {createdClientData.bmiData.category}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Target Weight Range */}
+                  <View style={styles.bmiRow}>
+                    <Text style={styles.bmiLabel}>
+                      Target Weight:
+                    </Text>
                     <Text style={styles.bmiCategoryText}>
-                      {createdBMIData.category}
+                      {createdClientData.bmiData.targetWeightRange?.min} -{' '}
+                      {createdClientData.bmiData.targetWeightRange?.max} kg
                     </Text>
                   </View>
-                </View>
 
-                {/* Target Weight Range */}
-                <View style={styles.bmiRow}>
-                  <Text style={styles.bmiLabel}>
-                    Target Weight:
-                  </Text>
-                  <Text style={styles.bmiCategoryText}>
-                    {createdBMIData.targetWeightRange?.min} -{' '}
-                    {createdBMIData.targetWeightRange?.max} kg
-                  </Text>
-                </View>
-
-                {/* Target BMI Range */}
-                <View style={styles.bmiRow}>
-                  <Text style={styles.bmiLabel}>
-                    Target BMI:
-                  </Text>
-                  <Text style={styles.bmiCategoryText}>
-                    {createdBMIData.targetBMIRange?.min} -{' '}
-                    {createdBMIData.targetBMIRange?.max}
-                  </Text>
-                </View>
-
-                {/* Weight Recommendation */}
-                {createdBMIData.weightToLose > 0 && (
-                  <View style={styles.recommendationOrange}>
-                    <Text style={styles.recommendationOrangeText}>
-                      {createdBMIData.recommendation}
+                  {/* Target BMI Range */}
+                  <View style={styles.bmiRow}>
+                    <Text style={styles.bmiLabel}>
+                      Target BMI:
+                    </Text>
+                    <Text style={styles.bmiCategoryText}>
+                      {createdClientData.bmiData.targetBMIRange?.min} -{' '}
+                      {createdClientData.bmiData.targetBMIRange?.max}
                     </Text>
                   </View>
-                )}
 
-                {createdBMIData.weightToGain > 0 && (
-                  <View style={styles.recommendationGreen}>
-                    <Text style={styles.recommendationGreenText}>
-                      {createdBMIData.recommendation}
-                    </Text>
-                  </View>
-                )}
-
-                {createdBMIData.weightToLose === 0 &&
-                  createdBMIData.weightToGain === 0 && (
-                    <View style={styles.recommendationGreen}>
-                      <Text style={styles.recommendationGreenText}>
-                        {createdBMIData.recommendation}
+                  {/* Weight Recommendation */}
+                  {createdClientData.bmiData.weightToLose > 0 && (
+                    <View style={styles.recommendationOrange}>
+                      <Text style={styles.recommendationOrangeText}>
+                        {createdClientData.bmiData.recommendation}
                       </Text>
                     </View>
                   )}
 
-                {/* Remark */}
-                <Text style={styles.bmiRemark}>
-                  {createdBMIData.remark}
-                </Text>
+                  {createdClientData.bmiData.weightToGain > 0 && (
+                    <View style={styles.recommendationGreen}>
+                      <Text style={styles.recommendationGreenText}>
+                        {createdClientData.bmiData.recommendation}
+                      </Text>
+                    </View>
+                  )}
+
+                  {createdClientData.bmiData.weightToLose === 0 &&
+                    createdClientData.bmiData.weightToGain === 0 && (
+                      <View style={styles.recommendationGreen}>
+                        <Text style={styles.recommendationGreenText}>
+                          {createdClientData.bmiData.recommendation}
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* Remark */}
+                  <Text style={styles.bmiRemark}>
+                    {createdClientData.bmiData.remark}
+                  </Text>
+                </View>
+              )}
               </View>
-            )}
+            </ScrollView>
+
+            {/* Share Button */}
+            <TouchableOpacity
+              onPress={handleShareCredentials}
+              disabled={isSharing}
+              style={[styles.shareButton, isSharing && styles.disabledButton]}>
+              {isSharing ? (
+                <ActivityIndicator size="small" color={COLORS.brandSecondary} />
+              ) : (
+                <View style={styles.shareButtonContent}>
+                  <ShareIcon width={18} height={18} fill={COLORS.brandSecondary} />
+                  <Text style={styles.shareButtonText}>
+                    Share
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
             {/* Info Message */}
             <View style={styles.infoMessage}>
@@ -927,19 +978,23 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    maxHeight: '80%',
   },
   successIconContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  scrollViewContainer: {
+    maxHeight: 350,
   },
   successIcon: {
     backgroundColor: COLORS.brandDark,
-    borderRadius: 32,
-    width: 64,
-    height: 64,
+    borderRadius: 28,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   successCheckmark: {
     color: COLORS.brandSecondary,
@@ -958,59 +1013,53 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  loginCodeContainer: {
-    backgroundColor: COLORS.gray50,
-    borderRadius: 12,
+  credentialsBox: {
+    backgroundColor: COLORS.gray100,
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  logoContainer: {
+    marginTop: -8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalLogo: {
+    height: 70,
+  },
+  loginCodeContainer: {
+    marginBottom: 12,
   },
   loginCodeLabel: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.gray500,
     fontFamily: FONTS.medium,
-    marginBottom: 4,
-  },
-  loginCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   loginCodeText: {
-    fontSize: FONT_SIZES.base,
+    fontSize: FONT_SIZES.lg,
     color: COLORS.gray900,
-    fontFamily: FONTS.bold,
-    flex: 1,
-  },
-  copyButton: {
-    marginLeft: 8,
-    backgroundColor: COLORS.brandDark,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  copyButtonText: {
-    color: COLORS.brandSecondary,
-    fontSize: FONT_SIZES.xs,
     fontFamily: FONTS.bold,
   },
   bmiContainer: {
     backgroundColor: COLORS.blue50,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
   },
   bmiTitle: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.blue600,
     fontFamily: FONTS.bold,
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
   bmiRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   bmiLabel: {
     fontSize: FONT_SIZES.sm,
@@ -1039,9 +1088,10 @@ const styles = StyleSheet.create({
   },
   recommendationOrange: {
     backgroundColor: '#fed7aa',
-    padding: 8,
+    padding: 6,
     borderRadius: 8,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 6,
   },
   recommendationOrangeText: {
     fontSize: FONT_SIZES.xs,
@@ -1051,9 +1101,10 @@ const styles = StyleSheet.create({
   },
   recommendationGreen: {
     backgroundColor: '#dcfce7',
-    padding: 8,
+    padding: 6,
     borderRadius: 8,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 6,
   },
   recommendationGreenText: {
     fontSize: FONT_SIZES.xs,
@@ -1067,6 +1118,27 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     textAlign: 'center',
   },
+  shareButton: {
+    backgroundColor: COLORS.brandDark,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareButtonText: {
+    color: COLORS.brandSecondary,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.base,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
   infoMessage: {
     backgroundColor: COLORS.white,
     padding: 12,
@@ -1078,6 +1150,54 @@ const styles = StyleSheet.create({
     color: COLORS.dark,
     fontFamily: FONTS.regular,
     textAlign: 'center',
+  },
+  datePickerContainer: {
+    marginTop: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#e0fe66',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  datePickerButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  datePickerCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  datePickerCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3c3c3c',
+  },
+  datePickerConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: '#040404',
+    borderWidth: 2,
+    borderColor: '#e0fe66',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  datePickerConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#e0fe66',
   },
 });
 

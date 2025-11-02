@@ -77,7 +77,9 @@ const HomeScreen = () => {
   // Fetch client counts (memoized)
   const fetchClientCounts = useCallback(async () => {
     try {
-      if (!user?.uid) return;
+      if (!user?.uid) {
+        return;
+      }
 
       const clientService = new ClientService();
 
@@ -90,14 +92,20 @@ const HomeScreen = () => {
       }
 
       // Background check and update statuses
+      // Only check active clients (paused clients don't progress, so can't auto-complete)
       if (clientsResult.success) {
-        let statusUpdated = false;
+        // First, recalculate endDates for all clients with pause history
+        // This fixes existing clients whose endDate wasn't updated properly
         for (const client of clientsResult.clients) {
-          if (client.status === 'active' || client.status === 'paused') {
-            const checkResult = await clientService.checkAndUpdateClientStatus(client.id);
-            if (checkResult.success && checkResult.updated) {
-              statusUpdated = true;
-            }
+          if (client.pauseHistory && client.pauseHistory.length > 0) {
+            await clientService.recalculateClientEndDate(client.id);
+          }
+        }
+
+        // Then check only active clients for completion
+        for (const client of clientsResult.clients) {
+          if (client.status === 'active') {
+            await clientService.checkAndUpdateClientStatus(client.id);
           }
         }
       }

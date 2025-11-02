@@ -55,6 +55,36 @@ const RenewalModal = ({visible, onClose, onConfirm, client}) => {
               <Text style={styles.infoValue}>{client?.package} days</Text>
             </View>
 
+            {/* Previous Status */}
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoLabel}>Previous Status:</Text>
+              <Text style={[styles.infoValue, styles.statusText]}>
+                {client?.status?.charAt(0).toUpperCase() + client?.status?.slice(1)}
+              </Text>
+            </View>
+
+            {/* Stopped Reason - Only show if client was stopped */}
+            {client?.status === 'stopped' && client?.stoppedReason && (
+              <View style={styles.stoppedReasonContainer}>
+                <Text style={styles.stoppedReasonLabel}>
+                  Reason for Stopping:
+                </Text>
+                <Text style={styles.stoppedReasonText}>
+                  {client.stoppedReason}
+                </Text>
+                {client?.stoppedAt && (
+                  <Text style={styles.stoppedAtText}>
+                    Stopped on:{' '}
+                    {new Date(client.stoppedAt.toDate ? client.stoppedAt.toDate() : client.stoppedAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                )}
+              </View>
+            )}
+
             {/* Package Selection */}
             <View style={styles.inputContainer}>
               <Dropdown
@@ -69,8 +99,10 @@ const RenewalModal = ({visible, onClose, onConfirm, client}) => {
 
             {/* Info Text */}
             <Text style={styles.infoText}>
-              The client's package will be renewed with a new start date from today.
-              Previous package history will be preserved.
+              {client?.status === 'stopped'
+                ? 'Review the reason above. The package will be renewed with a new start date from today and previous history will be preserved.'
+                : "The client's package will be renewed with a new start date from today. Previous package history will be preserved."
+              }
             </Text>
 
             {/* Actions */}
@@ -155,6 +187,36 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: COLORS.darkest,
   },
+  statusText: {
+    textTransform: 'capitalize',
+  },
+  stoppedReasonContainer: {
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+  },
+  stoppedReasonLabel: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.semiBold,
+    color: '#991B1B',
+    marginBottom: 6,
+  },
+  stoppedReasonText: {
+    fontSize: FONT_SIZES.base,
+    fontFamily: FONTS.medium,
+    color: '#7F1D1D',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  stoppedAtText: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    color: '#991B1B',
+    fontStyle: 'italic',
+  },
   inputContainer: {
     marginBottom: 16,
   },
@@ -195,7 +257,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: COLORS.brandPrimary,
-    color: COLORS.brandDarkest
+    color: COLORS.brandDarkest,
   },
   disabledButton: {
     opacity: 0.5,

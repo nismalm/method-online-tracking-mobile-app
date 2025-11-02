@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,16 @@ import {
   Platform,
   Alert,
   StyleSheet,
-  Clipboard,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import {captureRef} from 'react-native-view-shot';
+import Share from 'react-native-share';
 import {TextInput, Button} from '../components';
 import AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
+import ShareIcon from '../../assets/icons/shareIcon';
 
 const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
   const {user} = useAuth();
@@ -31,9 +35,14 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState({
+    name: '',
     email: '',
     password: '',
   });
+
+  // Share functionality
+  const credentialsRef = useRef();
+  const [isSharing, setIsSharing] = useState(false);
 
   const validateEmail = (emailValue) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,15 +55,40 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
     return mobileRegex.test(mobileValue);
   };
 
-  const copyToClipboard = (text, label) => {
-    Clipboard.setString(text);
-    Alert.alert('Copied!', `${label} copied to clipboard`);
-  };
 
-  const copyAllCredentials = () => {
-    const text = `Trainer Login Credentials\n\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`;
-    Clipboard.setString(text);
-    Alert.alert('Copied!', 'All credentials copied to clipboard');
+  const handleShareCredentials = async () => {
+    try {
+      setIsSharing(true);
+
+      // Capture the credentials section (logo + email + password) as PNG
+      const uri = await captureRef(credentialsRef, {
+        format: 'png',
+        quality: 1.0,
+      });
+
+      // Create filename with trainer name
+      const fileName = `${createdCredentials.name.replace(/\s+/g, '_')}-Credentials.png`;
+
+      // Share the captured image using native share dialog
+      await Share.open({
+        url: `file://${uri}`,
+        title: 'Share Trainer Credentials',
+        message: 'Welcome to team METHOD!, Here is your login credentials to METHOD ONLINE TRACKING APPLICATION, you can change your password from the app & the mail received(Check for spam folder too), Thanks',
+        filename: fileName,
+      });
+
+      setIsSharing(false);
+    } catch (error) {
+      setIsSharing(false);
+
+      // User cancelled share - not an error
+      if (error.message && error.message.includes('User did not share')) {
+        return;
+      }
+
+      console.error('Share failed:', error);
+      Alert.alert('Error', 'Failed to share credentials. Please try again.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -104,7 +138,7 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
       );
 
       if (result.success) {
-        handleTrainerCreated(email.trim(), result.password);
+        handleTrainerCreated(name.trim(), email.trim(), result.password);
         if (onTrainerAdded) {
           onTrainerAdded();
         }
@@ -140,10 +174,11 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
     resetForm();
   };
 
-  const handleTrainerCreated = (email, password) => {
+  const handleTrainerCreated = (trainerName, trainerEmail, trainerPassword) => {
     setCreatedCredentials({
-      email: email,
-      password: password,
+      name: trainerName,
+      email: trainerEmail,
+      password: trainerPassword,
     });
     onClose();
     setTimeout(() => {
@@ -302,27 +337,28 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
               </Text>
             </View>
 
-            {/* Credentials */}
-            <View style={styles.credentialsBox}>
+            {/* Credentials Box (with Logo) - This section will be captured */}
+            <View
+              ref={credentialsRef}
+              collapsable={false}
+              style={styles.credentialsBox}>
+              {/* Logo */}
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../assets/logo/method_logo_lg.png')}
+                  style={styles.modalLogo}
+                  resizeMode="contain"
+                />
+              </View>
+
               {/* Email */}
               <View style={styles.credentialItem}>
                 <Text style={styles.credentialLabel}>
                   EMAIL
                 </Text>
-                <View style={styles.credentialRow}>
-                  <Text style={styles.credentialValue}>
-                    {createdCredentials.email}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() =>
-                      copyToClipboard(createdCredentials.email, 'Email')
-                    }
-                    style={styles.copyButton}>
-                    <Text style={styles.copyButtonText}>
-                      COPY
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.credentialValue}>
+                  {createdCredentials.email}
+                </Text>
               </View>
 
               {/* Password */}
@@ -330,31 +366,32 @@ const AddTrainerModal = ({visible, onClose, onTrainerAdded}) => {
                 <Text style={styles.credentialLabel}>
                   PASSWORD
                 </Text>
-                <View style={styles.credentialRow}>
-                  <Text style={[styles.credentialValue, styles.passwordValue]}>
-                    {createdCredentials.password}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() =>
-                      copyToClipboard(createdCredentials.password, 'Password')
-                    }
-                    style={styles.copyButton}>
-                    <Text style={styles.copyButtonText}>
-                      COPY
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={[styles.credentialValue, styles.passwordValue]}>
+                  {createdCredentials.password}
+                </Text>
               </View>
             </View>
 
-            {/* Copy All Button */}
-            <TouchableOpacity
-              onPress={copyAllCredentials}
-              style={styles.copyAllButton}>
-              <Text style={styles.copyAllButtonText}>
-                Copy All Credentials
-              </Text>
-            </TouchableOpacity>
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsRow}>
+
+              {/* Share Button */}
+              <TouchableOpacity
+                onPress={handleShareCredentials}
+                disabled={isSharing}
+                style={[styles.actionButton, styles.shareButton, isSharing && styles.disabledButton]}>
+                {isSharing ? (
+                  <ActivityIndicator size="small" color={COLORS.brandSecondary} />
+                ) : (
+                  <View style={styles.shareButtonContent}>
+                    <ShareIcon width={18} height={18} fill={COLORS.brandSecondary} />
+                    <Text style={styles.shareButtonText}>
+                      Share
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
             {/* Info Message */}
             <View style={styles.successInfoBox}>
@@ -489,57 +526,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   credentialsBox: {
-    backgroundColor: COLORS.gray50,
+    backgroundColor: COLORS.gray100,
     borderRadius: BORDER_RADIUS.xl,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
   },
+  logoContainer: {
+    marginTop: -10,
+    alignItems: 'center',
+  },
+  modalLogo: {
+    height: 90,
+  },
   credentialItem: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   credentialLabel: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.gray500,
     fontFamily: FONTS.medium,
-    marginBottom: 4,
-  },
-  credentialRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   credentialValue: {
     fontSize: FONT_SIZES.base,
     color: COLORS.gray900,
-    fontFamily: FONTS.medium,
-    flex: 1,
+    fontFamily: FONTS.bold,
   },
   passwordValue: {
     fontFamily: FONTS.bold,
   },
-  copyButton: {
-    marginLeft: 8,
-    backgroundColor: COLORS.brandDark,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.md,
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
   },
-  copyButtonText: {
-    color: COLORS.brandSecondary,
-    fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.bold,
+  actionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   copyAllButton: {
     backgroundColor: COLORS.brandDark,
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.xl,
-    marginBottom: 16,
   },
   copyAllButtonText: {
     color: COLORS.brandSecondary,
-    textAlign: 'center',
     fontFamily: FONTS.bold,
     fontSize: FONT_SIZES.base,
+  },
+  shareButton: {
+    backgroundColor: COLORS.brandDark,
+  },
+  shareButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareButtonText: {
+    color: COLORS.brandSecondary,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZES.base,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   successInfoBox: {
     backgroundColor: COLORS.brandWhite,

@@ -15,16 +15,22 @@
  * @returns {Date|null} Date object or null if invalid
  */
 export const parseDate = (dateString) => {
-  if (!dateString) return null;
+  if (!dateString) {
+    return null;
+  }
 
   const parts = dateString.split('/');
-  if (parts.length !== 3) return null;
+  if (parts.length !== 3) {
+    return null;
+  }
 
   const day = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JavaScript
   const year = parseInt(parts[2], 10);
 
-  if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+  if (isNaN(day) || isNaN(month) || isNaN(year)) {
+    return null;
+  }
 
   const date = new Date(year, month, day);
 
@@ -72,7 +78,9 @@ export const addDays = (date, days) => {
  * @returns {number} Number of days
  */
 export const daysBetween = (date1, date2) => {
-  if (!date1 || !date2) return 0;
+  if (!date1 || !date2) {
+    return 0;
+  }
 
   // Set time to midnight for accurate day calculation
   const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
@@ -95,7 +103,9 @@ export const daysBetween = (date1, date2) => {
  */
 export const calculateEndDate = (startDateString, packageDays) => {
   const startDate = parseDate(startDateString);
-  if (!startDate) return '';
+  if (!startDate) {
+    return '';
+  }
 
   // End date = start + package - 1
   // Because start date is Day 1, not Day 0
@@ -112,7 +122,9 @@ export const calculateEndDate = (startDateString, packageDays) => {
  */
 export const calculateDaysElapsed = (startDateString, referenceDate = new Date()) => {
   const startDate = parseDate(startDateString);
-  if (!startDate) return 0;
+  if (!startDate) {
+    return 0;
+  }
 
   const elapsed = daysBetween(startDate, referenceDate);
 
@@ -137,7 +149,9 @@ export const calculateCurrentDay = (daysElapsed) => {
  * @returns {number} Number of paused days
  */
 export const calculatePausedDays = (pausedAt, resumedAt) => {
-  if (!pausedAt) return 0;
+  if (!pausedAt) {
+    return 0;
+  }
 
   // Handle Firebase Timestamp
   const pauseDate = pausedAt.toDate ? pausedAt.toDate() : new Date(pausedAt);
@@ -202,7 +216,9 @@ export const calculateDaysRemaining = (packageDays, effectiveDaysUsed) => {
  * @returns {number} Progress percentage (0-100)
  */
 export const calculateProgress = (effectiveDaysUsed, packageDays) => {
-  if (packageDays <= 0) return 0;
+  if (packageDays <= 0) {
+    return 0;
+  }
 
   const progress = (effectiveDaysUsed / packageDays) * 100;
   return Math.min(100, Math.max(0, Math.round(progress)));
@@ -227,7 +243,9 @@ export const isPackageCompleted = (effectiveDaysUsed, packageDays) => {
  */
 export const calculateExpectedEndDate = (startDateString, packageDays, totalPausedDays) => {
   const startDate = parseDate(startDateString);
-  if (!startDate) return '';
+  if (!startDate) {
+    return '';
+  }
 
   // Expected end = start + package + paused days - 1
   const expectedEnd = addDays(startDate, packageDays + totalPausedDays - 1);
@@ -279,7 +297,8 @@ export const getClientDayAnalysis = (client) => {
   const effectiveDaysUsed = calculateEffectiveDaysUsed(daysElapsed, totalPausedDays);
 
   // Calculate current day number (1-based)
-  const currentDay = Math.min(calculateCurrentDay(effectiveDaysUsed - 1), packageDays);
+  // Start date is Day 1, so: effectiveDaysUsed + 1 = current day
+  const currentDay = Math.min(effectiveDaysUsed + 1, packageDays);
 
   // Calculate days remaining
   const daysRemaining = calculateDaysRemaining(packageDays, effectiveDaysUsed);
@@ -344,8 +363,9 @@ export const getDayDisplayText = (analysis) => {
     remainingText = 'Completed';
     statusText = 'Completed';
   } else if (isPaused) {
-    dayText = `Day ${currentDay} of ${packageDays}`;
-    remainingText = `Paused (${daysRemaining} days left)`;
+    // Show "Paused on Day X" instead of "Day X of Y"
+    dayText = `Paused on Day ${currentDay}`;
+    remainingText = `${daysRemaining} days left`;
     statusText = 'Paused';
   } else {
     dayText = `Day ${currentDay} of ${packageDays}`;
