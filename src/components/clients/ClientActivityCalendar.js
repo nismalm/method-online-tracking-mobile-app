@@ -69,7 +69,18 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
         const resumedDate = pause.resumedAt.toDate ? pause.resumedAt.toDate() : new Date(pause.resumedAt);
         const checkDate = DayCalculator.parseDate(ddmmyyyy);
 
-        if (checkDate && checkDate >= pausedDate && checkDate <= resumedDate) {
+        if (!checkDate) {
+          continue;
+        }
+
+        // Normalize all dates to midnight for comparison
+        const pausedDateMidnight = new Date(pausedDate.getFullYear(), pausedDate.getMonth(), pausedDate.getDate());
+        const resumedDateMidnight = new Date(resumedDate.getFullYear(), resumedDate.getMonth(), resumedDate.getDate());
+        const checkDateMidnight = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+
+        // Include pause start date, exclude resume date
+        // If paused on 4th, 4th is striked. If resumed on 5th, 5th is NOT striked.
+        if (checkDateMidnight >= pausedDateMidnight && checkDateMidnight < resumedDateMidnight) {
           return true;
         }
       }
@@ -91,13 +102,14 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
         marked[dateString] = {
           customStyles: {
             container: {
-              backgroundColor: '#F5F5F5',
+              backgroundColor: COLORS.gray100,
               borderWidth: 1,
               borderColor: '#CCCCCC',
             },
             text: {
-              color: '#999999',
+              color: COLORS.brandDarkest,
               textDecorationLine: 'line-through',
+              textDecorationStyle: 'double',
             },
           },
         };
@@ -179,24 +191,52 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
   const minDate = convertDateFormat(startDate);
   const maxDate = convertDateFormat(endDate);
 
+  // Determine initial calendar date
+  // For current packages: focus on today if within range, else start date
+  // For historical packages: focus on start date
+  const getInitialDate = () => {
+    // Check if this is the current active package
+    // A package is "current" if it matches the client's currentPackageId
+    const isCurrentPackage = packageData?.packageId === client?.currentPackageId;
+    
+    // For historical packages, always use start date
+    if (!isCurrentPackage) {
+      return minDate;
+    }
+
+    // For current package, try to use today's date if within range
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
+    // Check if today is within the package date range
+    if (minDate && maxDate && todayStr >= minDate && todayStr <= maxDate) {
+      return todayStr;
+    }
+
+    // If today is outside range, use start date
+    return minDate;
+  };
+
+  const initialDate = getInitialDate();
+
   return (
     <View style={styles.container}>
       <Calendar
-        key={minDate}
+        key={`${minDate}-${initialDate}`}
         markingType="custom"
         markedDates={markedDates}
         minDate={minDate}
         maxDate={maxDate}
-        current={minDate}
+        current={initialDate}
         onDayPress={day => {
           if (onDayPress) {
             onDayPress(day);
           }
         }}
         theme={{
-          todayTextColor: COLORS.brandPrimary,
+          todayTextColor: COLORS.brandSecondary,
           selectedDayBackgroundColor: COLORS.brandPrimary,
-          arrowColor: COLORS.brandPrimary,
+          arrowColor: COLORS.brandDark,
           monthTextColor: COLORS.brandDarkest,
           textMonthFontFamily: FONTS.bold,
           textMonthFontSize: FONT_SIZES.lg,
@@ -223,7 +263,7 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
           <Text style={styles.legendText}>Pending</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, {backgroundColor: '#F5F5F5'}]} />
+          <View style={[styles.legendDot, {backgroundColor: COLORS.gray100}]} />
           <Text style={styles.legendText}>Paused</Text>
         </View>
       </View>

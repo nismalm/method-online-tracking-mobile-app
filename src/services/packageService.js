@@ -384,7 +384,14 @@ export const isDatePaused = (dateString, pauseHistory) => {
     const pausedDate = pause.pausedAt.toDate ? pause.pausedAt.toDate() : new Date(pause.pausedAt);
     const resumedDate = pause.resumedAt.toDate ? pause.resumedAt.toDate() : new Date(pause.resumedAt);
 
-    if (checkDate >= pausedDate && checkDate <= resumedDate) {
+    // Normalize all dates to midnight for comparison
+    const pausedDateMidnight = new Date(pausedDate.getFullYear(), pausedDate.getMonth(), pausedDate.getDate());
+    const resumedDateMidnight = new Date(resumedDate.getFullYear(), resumedDate.getMonth(), resumedDate.getDate());
+    const checkDateMidnight = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+
+    // Include pause start date, exclude resume date
+    // If paused on 4th, 4th is striked. If resumed on 5th, 5th is NOT striked.
+    if (checkDateMidnight >= pausedDateMidnight && checkDateMidnight < resumedDateMidnight) {
       return true;
     }
   }

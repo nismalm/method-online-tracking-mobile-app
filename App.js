@@ -1,6 +1,8 @@
 import React, {useState, useEffect, useCallback} from 'react';
 import {View, ActivityIndicator, Text, LogBox, StyleSheet, Platform} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {BottomSheetModalProvider} from '@gorhom/bottom-sheet';
 import LoginScreen from './src/screens/LoginScreen';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
 import {AuthProvider, useAuth} from './src/context/AuthContext';
@@ -102,13 +104,17 @@ function AppContent() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <FontLoader>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </FontLoader>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{flex: 1}}>
+      <ErrorBoundary>
+        <FontLoader>
+          <AuthProvider>
+            <BottomSheetModalProvider>
+              <AppContent />
+            </BottomSheetModalProvider>
+          </AuthProvider>
+        </FontLoader>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

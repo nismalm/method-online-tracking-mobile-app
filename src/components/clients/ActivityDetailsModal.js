@@ -1,15 +1,15 @@
-import React from 'react';
-import {View, Text, ScrollView, StyleSheet, TouchableOpacity} from 'react-native';
-import Modal from 'react-native-modal';
+import React, {useEffect, useRef, useMemo, useCallback} from 'react';
+import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop} from '@gorhom/bottom-sheet';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../../constants/theme';
 
 /**
- * Activity Details Modal Component
+ * Activity Details Bottom Sheet Component
  * Shows detailed activity information for a specific day
  *
  * Props:
- * - visible: Boolean to show/hide modal
- * - onClose: Callback when modal is closed
+ * - visible: Boolean to show/hide bottom sheet
+ * - onClose: Callback when bottom sheet is closed
  * - activity: Activity object with responses
  * - dayNumber: Day number (e.g., 11)
  * - date: Date string (DD/MM/YYYY)
@@ -24,28 +24,59 @@ const ActivityDetailsModal = ({
   date,
   isPaused = false,
 }) => {
+  const bottomSheetModalRef = useRef(null);
+
+  // Snap points for the bottom sheet (90% of screen height)
+  const snapPoints = useMemo(() => ['90%'], []);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (visible) {
+      bottomSheetModalRef.current?.present();
+    } else {
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [visible]);
+
+  // Render backdrop component
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
+
+  // Handle sheet dismissal
+  const handleSheetDismiss = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const renderPausedView = () => {
     return (
-      <View style={styles.centeredContent}>
-        <Text style={styles.pausedIcon}>⏸️</Text>
+      <BottomSheetView style={styles.centeredContent}>
         <Text style={styles.pausedTitle}>Package Paused</Text>
         <Text style={styles.pausedDescription}>
           This day was part of a pause period.{'\n'}
           Package days don't count during pause periods.
         </Text>
-      </View>
+      </BottomSheetView>
     );
   };
 
   const renderNoActivityView = () => {
     return (
-      <View style={styles.centeredContent}>
-        <Text style={styles.emptyIcon}>📝</Text>
+      <BottomSheetView style={styles.centeredContent}>
         <Text style={styles.emptyTitle}>No Activity Submitted</Text>
         <Text style={styles.emptyDescription}>
           The client hasn't filled their daily tracker for this day yet.
         </Text>
-      </View>
+      </BottomSheetView>
     );
   };
 
@@ -55,7 +86,10 @@ const ActivityDetailsModal = ({
     }
 
     return (
-      <ScrollView style={styles.activityContent} showsVerticalScrollIndicator={false}>
+      <BottomSheetScrollView
+        style={styles.activityContent}
+        contentContainerStyle={styles.activityContentContainer}
+        showsVerticalScrollIndicator={false}>
         {/* Activity Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryText}>
@@ -66,32 +100,28 @@ const ActivityDetailsModal = ({
         {/* Responses */}
         {activity.responses.map((response, index) => (
           <View key={index} style={styles.responseCard}>
-            <View style={styles.responseHeader}>
+            <View style={styles.responseRow}>
               <View style={[
                 styles.statusBadge,
-                response.completed ? styles.statusBadgeCompleted : styles.statusBadgeIncomplete
+                response.completed ? styles.statusBadgeCompleted : styles.statusBadgeIncomplete,
               ]}>
                 <Text style={styles.statusBadgeText}>
                   {response.completed ? '✓' : '✕'}
                 </Text>
               </View>
-              <Text style={styles.questionText}>{response.question}</Text>
-            </View>
-            
-            <View style={styles.answerContainer}>
-              <Text style={styles.answerLabel}>Answer:</Text>
-              <Text style={styles.answerText}>
-                {response.answer || 'Not answered'}
-              </Text>
-            </View>
-
-            {/* Individual Note for this response */}
-            {response.note && response.note.trim() !== '' && (
-              <View style={styles.noteContainer}>
-                <Text style={styles.noteLabel}>📝 Note:</Text>
-                <Text style={styles.noteText}>{response.note}</Text>
+              <View style={styles.responseContent}>
+                <Text style={styles.questionText}>{response.question}</Text>
+                <Text style={styles.answerText}>
+                  {response.answer || 'Not answered'}
+                </Text>
+                {/* Individual Note for this response */}
+                {response.note && response.note.trim() !== '' && (
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.noteText}>{response.note}</Text>
+                  </View>
+                )}
               </View>
-            )}
+            </View>
           </View>
         ))}
 
@@ -115,59 +145,46 @@ const ActivityDetailsModal = ({
             </Text>
           </View>
         )}
-      </ScrollView>
+      </BottomSheetScrollView>
     );
   };
 
   return (
-    <Modal
-      isVisible={visible}
-      onBackdropPress={onClose}
-      onSwipeComplete={onClose}
-      swipeDirection="down"
-      style={styles.modal}
-      propagateSwipe={true}
-      avoidKeyboard={true}>
-      <View style={styles.modalContent}>
-        {/* Handle bar */}
-        <View style={styles.handleBar} />
-
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            Day {dayNumber} • {date}
-          </Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Content */}
-        {isPaused ? renderPausedView() : renderActivityView()}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      snapPoints={snapPoints}
+      enablePanDownToClose={true}
+      enableDynamicSizing={false}
+      backdropComponent={renderBackdrop}
+      onDismiss={handleSheetDismiss}
+      backgroundStyle={styles.bottomSheetBackground}
+      handleIndicatorStyle={styles.handleIndicator}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          Day {dayNumber} • {date}
+        </Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      {/* Content */}
+      {isPaused ? renderPausedView() : renderActivityView()}
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modal: {
-    justifyContent: 'flex-end',
-    margin: 0,
-  },
-  modalContent: {
+  bottomSheetBackground: {
     backgroundColor: COLORS.white,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
-    paddingTop: 8,
-    maxHeight: '90%',
   },
-  handleBar: {
+  handleIndicator: {
+    backgroundColor: COLORS.brandBorder,
     width: 40,
     height: 4,
-    backgroundColor: COLORS.brandBorder,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
@@ -198,41 +215,44 @@ const styles = StyleSheet.create({
     color: COLORS.brandDarkest,
   },
   activityContent: {
+    flex: 1,
+  },
+  activityContentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   summaryCard: {
     backgroundColor: COLORS.brandPrimary,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: BORDER_RADIUS.md,
+    padding: 12,
+    marginBottom: 16,
     alignItems: 'center',
   },
   summaryText: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.base,
     fontFamily: FONTS.bold,
     color: COLORS.brandDarkest,
   },
   responseCard: {
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 1.5,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
     borderColor: COLORS.brandBorder,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 10,
   },
-  responseHeader: {
+  responseRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 10,
+    gap: 12,
   },
   statusBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   statusBadgeCompleted: {
     backgroundColor: COLORS.green500,
@@ -241,75 +261,56 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.red500,
   },
   statusBadgeText: {
-    fontSize: FONT_SIZES.base,
+    fontSize: FONT_SIZES.sm,
     fontFamily: FONTS.bold,
     color: COLORS.white,
+  },
+  responseContent: {
+    flex: 1,
   },
   questionText: {
     fontSize: FONT_SIZES.base,
     fontFamily: FONTS.semiBold,
     color: COLORS.brandDarkest,
-    flex: 1,
-    lineHeight: 22,
-  },
-  answerContainer: {
-    backgroundColor: COLORS.brandPrimaryLight,
-    borderRadius: BORDER_RADIUS.md,
-    padding: 12,
-    marginLeft: 38,
-  },
-  answerLabel: {
-    fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.brandTextSecondary,
+    lineHeight: 20,
     marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   answerText: {
-    fontSize: FONT_SIZES.base,
+    fontSize: FONT_SIZES.sm,
     fontFamily: FONTS.medium,
-    color: COLORS.brandDarkest,
+    color: COLORS.brandTextSecondary,
+    lineHeight: 18,
   },
   noteContainer: {
-    backgroundColor: COLORS.gray50,
-    borderRadius: BORDER_RADIUS.md,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.brandPrimary,
-    padding: 12,
-    marginTop: 10,
-    marginLeft: 38,
-  },
-  noteLabel: {
-    fontSize: FONT_SIZES.xs,
-    fontFamily: FONTS.semiBold,
-    color: COLORS.brandTextSecondary,
-    marginBottom: 4,
+    backgroundColor: COLORS.brandPrimaryLight,
+    borderRadius: BORDER_RADIUS.sm,
+    borderLeftWidth: 2,
+    borderLeftColor: COLORS.brandSecondary,
+    padding: 8,
+    marginTop: 6,
   },
   noteText: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     fontFamily: FONTS.regular,
-    color: COLORS.brandDarkest,
-    lineHeight: 20,
+    color: COLORS.brandDark,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
   timestampContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   timestampText: {
     fontSize: FONT_SIZES.xs,
     fontFamily: FONTS.regular,
-    color: COLORS.brandTextSecondary,
+    color: COLORS.brandTextLight,
   },
   centeredContent: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 300,
-  },
-  pausedIcon: {
-    fontSize: 48,
-    marginBottom: 16,
   },
   pausedTitle: {
     fontSize: FONT_SIZES.xl,
@@ -323,10 +324,6 @@ const styles = StyleSheet.create({
     color: COLORS.brandTextSecondary,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: FONT_SIZES.xl,

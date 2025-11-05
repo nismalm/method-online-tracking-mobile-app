@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import {View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, ActivityIndicator} from 'react-native';
+import {View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, ActivityIndicator, RefreshControl} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import ClientFormModal from '../components/ClientFormModal';
 import {StopModal, RenewalModal} from '../components';
@@ -50,6 +50,7 @@ const ClientDetailScreen = ({route, navigation}) => {
   const [selectedPackageData, setSelectedPackageData] = useState(null);
   const [activities, setActivities] = useState([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [packageCache, setPackageCache] = useState({});
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [selectedDayNumber, setSelectedDayNumber] = useState(null);
@@ -134,6 +135,29 @@ const ClientDetailScreen = ({route, navigation}) => {
       setActivitiesLoading(false);
     }
   }, [packageCache]);
+
+  // Handle refresh for activities tab
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Reload client data
+      await loadClient();
+      // Clear package cache to force reload of activities
+      setPackageCache({});
+      // Reload packages
+      if (client) {
+        await loadPackages();
+        // Reload activities for current package
+        if (selectedPackageId) {
+          await loadActivities(selectedPackageId);
+        }
+      }
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadClient, loadPackages, loadActivities, selectedPackageId, client]);
 
   useEffect(() => {
     loadClient();
@@ -325,9 +349,12 @@ const ClientDetailScreen = ({route, navigation}) => {
     // Check if date is paused
     // For archived packages: use snapshot pauseHistory, for current: use client's pauseHistory
     const pauseHistory = selectedPackageData?.pauseHistory || client.pauseHistory || [];
-    const isPaused = selectedPackageData
-      ? PackageService.isDatePaused(formattedDate, pauseHistory)
-      : false;
+    const isPaused = PackageService.isDatePaused(formattedDate, pauseHistory);
+
+    // If date is paused, don't open modal
+    if (isPaused) {
+      return;
+    }
 
     // Calculate day number
     const dayNumber = selectedPackageData
@@ -638,7 +665,12 @@ const ClientDetailScreen = ({route, navigation}) => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          activeTab === 'activities' ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          ) : undefined
+        }>
         {activeTab === 'overview' ? renderOverviewTab() : renderActivitiesTab()}
       </ScrollView>
 
