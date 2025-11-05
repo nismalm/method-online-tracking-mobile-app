@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
@@ -8,8 +8,8 @@ import TextInput from '../components/TextInput';
 import FloatingActionButton from '../components/FloatingActionButton';
 import Dropdown from '../components/Dropdown';
 import ClientFormModal from '../components/ClientFormModal';
-import ClientService from '../services/clientService';
-import AuthService from '../services/authService';
+import * as ClientService from '../services/clientService';
+import * as AuthService from '../services/authService';
 import * as DayCalculator from '../utils/dayCalculator';
 import {STATUS_COLORS} from '../constants/formOptions';
 import AddIcon from '../../assets/icons/addIcon';
@@ -98,9 +98,6 @@ const ClientsScreen = ({navigation}) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // Create service instance for non-static methods
-  const clientService = useMemo(() => new ClientService(), []);
-
   const statusOptions = [
     {label: 'All Status', value: 'all'},
     {label: 'Active', value: 'active'},
@@ -133,9 +130,9 @@ const ClientsScreen = ({navigation}) => {
 
       // For non-admins (trainers), only load their own clients
       if (!isSuperAdmin()) {
-        result = await clientService.getClientsByTrainer(user?.uid);
+        result = await ClientService.getClientsByTrainer(user?.uid);
       } else {
-        result = await clientService.getAllClients();
+        result = await ClientService.getAllClients();
       }
 
       if (result.success) {
@@ -153,7 +150,7 @@ const ClientsScreen = ({navigation}) => {
     } finally {
       setLoading(false);
     }
-  }, [isSuperAdmin, user?.uid, clientService, checkClientStatuses]);
+  }, [isSuperAdmin, user?.uid, checkClientStatuses]);
 
   // Background task to check and update client statuses
   const checkClientStatuses = useCallback(async (clientsList) => {
@@ -163,7 +160,7 @@ const ClientsScreen = ({navigation}) => {
       // Check each active or paused client
       for (const client of clientsList) {
         if (client.status === 'active' || client.status === 'paused') {
-          const result = await clientService.checkAndUpdateClientStatus(client.id);
+          const result = await ClientService.checkAndUpdateClientStatus(client.id);
           if (result.success && result.updated) {
             statusUpdated = true;
           }
@@ -174,9 +171,9 @@ const ClientsScreen = ({navigation}) => {
       if (statusUpdated) {
         let result;
         if (!isSuperAdmin()) {
-          result = await clientService.getClientsByTrainer(user?.uid);
+          result = await ClientService.getClientsByTrainer(user?.uid);
         } else {
-          result = await clientService.getAllClients();
+          result = await ClientService.getAllClients();
         }
 
         if (result.success) {
@@ -188,7 +185,7 @@ const ClientsScreen = ({navigation}) => {
       console.error('Check client statuses error:', error);
       // Silently fail - don't show error to user
     }
-  }, [clientService, isSuperAdmin, user?.uid]);
+  }, [isSuperAdmin, user?.uid]);
 
   // Filter clients based on search, status, and trainer
   const filterClients = useCallback(() => {

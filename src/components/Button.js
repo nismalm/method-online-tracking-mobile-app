@@ -14,7 +14,7 @@ const Button = ({
 }) => {
   const getButtonStyle = () => {
     const styles = [baseStyles.base];
-    
+
     // Add variant style
     switch (variant) {
       case 'primary':
@@ -30,7 +30,7 @@ const Button = ({
         styles.push(baseStyles.ghost);
         break;
     }
-    
+
     // Add size style
     switch (size) {
       case 'small':
@@ -43,23 +43,23 @@ const Button = ({
         styles.push(baseStyles.large);
         break;
     }
-    
+
     // Add disabled style
     if (disabled || loading) {
       styles.push(baseStyles.disabled);
     }
-    
+
     // Add custom style
     if (style) {
       styles.push(style);
     }
-    
+
     return styles;
   };
 
   const getTextStyle = () => {
     const styles = [];
-    
+
     // Add variant text style
     switch (variant) {
       case 'primary':
@@ -71,7 +71,7 @@ const Button = ({
         styles.push(textStyles.dark);
         break;
     }
-    
+
     // Add size text style
     switch (size) {
       case 'small':
@@ -84,7 +84,7 @@ const Button = ({
         styles.push(textStyles.large);
         break;
     }
-    
+
     return styles;
   };
 

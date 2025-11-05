@@ -2,8 +2,8 @@ import React, {useState, useCallback} from 'react';
 import {View, Text, ScrollView, TouchableOpacity, StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
-import AuthService from '../services/authService';
-import ClientService from '../services/clientService';
+import * as AuthService from '../services/authService';
+import * as ClientService from '../services/clientService';
 import {useAuth} from '../context/AuthContext';
 import Header from '../components/Header';
 import AddTrainerModal from '../components/AddTrainerModal';
@@ -81,14 +81,12 @@ const HomeScreen = () => {
         return;
       }
 
-      const clientService = new ClientService();
-
       // First get all clients to check statuses
       let clientsResult;
       if (isAdmin()) {
-        clientsResult = await clientService.getAllClients();
+        clientsResult = await ClientService.getAllClients();
       } else {
-        clientsResult = await clientService.getClientsByTrainer(user.uid);
+        clientsResult = await ClientService.getClientsByTrainer(user.uid);
       }
 
       // Background check and update statuses
@@ -98,20 +96,20 @@ const HomeScreen = () => {
         // This fixes existing clients whose endDate wasn't updated properly
         for (const client of clientsResult.clients) {
           if (client.pauseHistory && client.pauseHistory.length > 0) {
-            await clientService.recalculateClientEndDate(client.id);
+            await ClientService.recalculateClientEndDate(client.id);
           }
         }
 
         // Then check only active clients for completion
         for (const client of clientsResult.clients) {
           if (client.status === 'active') {
-            await clientService.checkAndUpdateClientStatus(client.id);
+            await ClientService.checkAndUpdateClientStatus(client.id);
           }
         }
       }
 
       // Now fetch counts (will include any updated statuses)
-      const result = await clientService.getClientCounts(user.uid, isAdmin());
+      const result = await ClientService.getClientCounts(user.uid, isAdmin());
 
       if (result.success) {
         setClientCounts(result.counts);

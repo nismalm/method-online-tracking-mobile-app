@@ -13,7 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
 import {TextInput, Button} from '../components';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import UserIcon from '../../assets/icons/userIcon';
 import ChevronRightIcon from '../../assets/icons/chevronRightIcon';

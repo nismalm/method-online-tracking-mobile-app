@@ -4,6 +4,7 @@
 export const COLORS = {
   // Brand Colors
   brandPrimary: '#e0fe66',
+  brandPrimaryLight: '#f0ffcc',
   brandSecondary: '#c2e04f',
   brandDark: '#3c3c3c',
   brandDarkest: '#040404',

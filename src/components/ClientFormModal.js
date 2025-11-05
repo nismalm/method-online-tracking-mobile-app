@@ -16,7 +16,7 @@ import {captureRef} from 'react-native-view-shot';
 import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {TextInput, Button, Dropdown} from '../components';
-import ClientService from '../services/clientService';
+import * as ClientService from '../services/clientService';
 import * as DayCalculator from '../utils/dayCalculator';
 import {useAuth} from '../context/AuthContext';
 import ShareIcon from '../../assets/icons/shareIcon';
@@ -121,7 +121,6 @@ const formatDate = (date) => {
 
 const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode = 'add'}) => {
   const {user} = useAuth();
-  const clientService = useMemo(() => new ClientService(), []);
   const isEditMode = mode === 'edit' && client !== null;
 
   // Form state
@@ -334,7 +333,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           status: newStatus,
         };
 
-        const result = await clientService.updateClient(client.id, updateData);
+        const result = await ClientService.updateClient(client.id, updateData);
 
         if (result.success) {
           Alert.alert('Success', 'Client updated successfully');
@@ -366,7 +365,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
         const createdByUid = user?.uid || 'unknown';
         const formattedStartDate = formatDate(startDate);
-        const result = await clientService.createClient(
+        const result = await ClientService.createClient(
           clientData,
           createdByUid,
           formattedStartDate
@@ -385,7 +384,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     } finally {
       setLoading(false);
     }
-  }, [formData, startDate, user, clientService, onClientAdded, validateAllFields, isEditMode, client, handleClose, handleClientCreated]);
+  }, [formData, startDate, user, onClientAdded, validateAllFields, isEditMode, client, handleClose, handleClientCreated]);
 
   // Reset form
   const resetForm = useCallback(() => {

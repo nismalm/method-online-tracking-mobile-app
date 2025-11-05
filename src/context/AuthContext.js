@@ -1,6 +1,6 @@
 import React, {createContext, useState, useEffect, useContext, useCallback, useRef} from 'react';
 import {Alert} from 'react-native';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import firestore, {getFirestore} from '@react-native-firebase/firestore';
 
 const AuthContext = createContext();
@@ -63,7 +63,7 @@ export const AuthProvider = ({children}) => {
 
   // Listen to real-time profile updates from Firestore
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {return;}
 
     const unsubscribe = getFirestore()
       .collection('users')
@@ -75,7 +75,7 @@ export const AuthProvider = ({children}) => {
             console.log('User profile deleted. Logging out...');
 
             // Prevent alert stacking
-            if (isAlertShowingRef.current) return;
+            if (isAlertShowingRef.current) {return;}
             isAlertShowingRef.current = true;
 
             Alert.alert(
@@ -105,7 +105,7 @@ export const AuthProvider = ({children}) => {
             console.log('Profile data is null. Logging out...');
 
             // Prevent alert stacking
-            if (isAlertShowingRef.current) return;
+            if (isAlertShowingRef.current) {return;}
             isAlertShowingRef.current = true;
 
             Alert.alert(
@@ -138,7 +138,7 @@ export const AuthProvider = ({children}) => {
             console.log('User status changed to inactive. Logging out...');
 
             // Prevent alert stacking
-            if (isAlertShowingRef.current) return;
+            if (isAlertShowingRef.current) {return;}
             isAlertShowingRef.current = true;
 
             Alert.alert(

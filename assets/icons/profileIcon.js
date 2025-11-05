@@ -1,5 +1,5 @@
-import * as React from "react";
-import Svg, { G, Path } from "react-native-svg";
+import * as React from 'react';
+import Svg, { G, Path } from 'react-native-svg';
 const ProfileIcon = (props) => (
   <Svg
     id="Layer_1"

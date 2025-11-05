@@ -1,5 +1,5 @@
-import * as React from "react";
-import Svg, { Rect } from "react-native-svg";
+import * as React from 'react';
+import Svg, { Rect } from 'react-native-svg';
 const stopIcon = (props) => (
   <Svg
     fill="#000000"
@@ -20,7 +20,7 @@ const stopIcon = (props) => (
       height={20}
       rx={2}
       style={{
-        fill: "rgb(0, 0, 0)",
+        fill: 'rgb(0, 0, 0)',
       }}
     />
   </Svg>

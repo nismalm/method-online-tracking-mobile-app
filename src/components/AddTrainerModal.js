@@ -15,7 +15,7 @@ import {
 import {captureRef} from 'react-native-view-shot';
 import Share from 'react-native-share';
 import {TextInput, Button} from '../components';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 import ShareIcon from '../../assets/icons/shareIcon';

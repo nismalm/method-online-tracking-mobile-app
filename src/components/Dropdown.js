@@ -18,7 +18,7 @@ const Dropdown = ({
 
   const getContainerStyle = () => {
     const styles = [containerStyles.base];
-    
+
     if (error) {
       styles.push(containerStyles.error);
     } else if (isFocus) {
@@ -26,11 +26,11 @@ const Dropdown = ({
     } else {
       styles.push(containerStyles.normal);
     }
-    
+
     if (style) {
       styles.push(style);
     }
-    
+
     return styles;
   };
 
@@ -41,26 +41,26 @@ const Dropdown = ({
     selectedText: { fontSize: 16, color: COLORS.black, fontFamily: FONTS.regular },
     icon: { width: 20, height: 20 },
     inputSearch: {
-      height: 40, 
-      fontSize: 16, 
-      borderRadius: 8, 
+      height: 40,
+      fontSize: 16,
+      borderRadius: 8,
       paddingHorizontal: 0,
-      borderWidth: 0, 
-      borderColor: COLORS.brandBorder, 
+      borderWidth: 0,
+      borderColor: COLORS.brandBorder,
       color: COLORS.black,
-      fontFamily: FONTS.regular, 
-      marginHorizontal: 5, 
+      fontFamily: FONTS.regular,
+      marginHorizontal: 5,
       marginVertical: 8,
-      backgroundColor: COLORS.white
+      backgroundColor: COLORS.white,
     },
     container: { borderRadius: 12, borderWidth: 0, marginTop: 4 },
     item: { fontSize: 16, color: COLORS.black, fontFamily: FONTS.regular },
-    itemContainer: { 
-      paddingVertical: 1, 
-      paddingHorizontal: 1, 
-      borderBottomWidth: 0.5, 
-      borderBottomColor: '#f0f0f0' 
-    }
+    itemContainer: {
+      paddingVertical: 1,
+      paddingHorizontal: 1,
+      borderBottomWidth: 0.5,
+      borderBottomColor: '#f0f0f0',
+    },
   };
 
   return (

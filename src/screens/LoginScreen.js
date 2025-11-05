@@ -13,7 +13,7 @@ import {
 import {TextInput, Button} from '../components';
 import MailIcon from '../../assets/icons/mailIcon';
 import PasswordIcon from '../../assets/icons/lockIcon';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import {COLORS, FONTS, FONT_SIZES} from '../constants/theme';
 
 const LoginScreen = () => {

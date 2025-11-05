@@ -24,13 +24,13 @@ const TextInput = ({
 
   const getContainerStyle = () => {
     const styles = [containerStyles.base];
-    
+
     if (variant === 'search') {
       styles.push(containerStyles.search);
     } else {
       styles.push(containerStyles.default);
     }
-    
+
     if (error) {
       styles.push(containerStyles.error);
     } else if (isFocused && variant !== 'search') {
@@ -38,15 +38,15 @@ const TextInput = ({
     } else if (variant !== 'search') {
       styles.push(containerStyles.normal);
     }
-    
+
     if (!editable) {
       styles.push(containerStyles.disabled);
     }
-    
+
     if (style) {
       styles.push(style);
     }
-    
+
     return styles;
   };
 

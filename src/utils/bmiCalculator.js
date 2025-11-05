@@ -32,13 +32,13 @@
 //   if (!weight || !height || weight <= 0 || height <= 0) {
 //     return 0;
 //   }
-  
+
 //   // Convert height from cm to meters
 //   const heightInMeters = height / 100;
-  
+
 //   // BMI = weight(kg) / height(m)²
 //   const bmi = weight / (heightInMeters * heightInMeters);
-  
+
 //   return Math.round(bmi * 10) / 10; // Round to 1 decimal place
 // };
 
@@ -96,27 +96,27 @@
 
 //   const heightInMeters = height / 100;
 //   const currentBMI = calculateBMI(currentWeight, height);
-  
+
 //   // Target BMI ranges (healthy range) - using constants
 //   let targetBMIMin = TARGET_BMI_RANGES.ADULT.min;
 //   let targetBMIMax = TARGET_BMI_RANGES.ADULT.max;
-  
+
 //   // Adjust for age if needed (older adults might have slightly higher targets)
 //   if (age >= AGE_THRESHOLDS.SENIOR) {
 //     targetBMIMin = TARGET_BMI_RANGES.SENIOR.min;
 //     targetBMIMax = TARGET_BMI_RANGES.SENIOR.max;
 //   }
-  
+
 //   const targetWeightMin = targetBMIMin * (heightInMeters * heightInMeters);
 //   const targetWeightMax = targetBMIMax * (heightInMeters * heightInMeters);
 //   const targetWeight = Math.round(((targetWeightMin + targetWeightMax) / 2) * 10) / 10;
-  
+
 //   const weightDifference = currentWeight - targetWeight;
-  
+
 //   let recommendation = '';
 //   let weightToLose = 0;
 //   let weightToGain = 0;
-  
+
 //   if (weightDifference > 0) {
 //     weightToLose = Math.round(weightDifference * 10) / 10;
 //     recommendation = `Aim to lose ${weightToLose} kg to reach healthy weight range`;
@@ -126,7 +126,7 @@
 //   } else {
 //     recommendation = 'You are already in the healthy weight range!';
 //   }
-  
+
 //   return {
 //     targetWeight,
 //     targetWeightRange: {
@@ -156,7 +156,7 @@
 //   const bmi = calculateBMI(weight, height);
 //   const bmiCategory = getBMICategory(bmi, age);
 //   const targetWeightInfo = calculateTargetWeight(height, weight, gender, age);
-  
+
 //   return {
 //     bmi,
 //     category: bmiCategory.category,
@@ -185,13 +185,13 @@ const BMI_CATEGORIES = {
   OVERWEIGHT: { min: 25.0, max: 29.9, category: 'Overweight', remark: 'Above normal weight range', color: '#F59E0B' },
   OBESE_I: { min: 30.0, max: 34.9, category: 'Obese Class I', remark: 'Moderately obese', color: '#EF4444' },
   OBESE_II: { min: 35.0, max: 39.9, category: 'Obese Class II', remark: 'Severely obese', color: '#DC2626' },
-  OBESE_III: { min: 40.0, max: 999, category: 'Obese Class III', remark: 'Very severely obese', color: '#991B1B' }
+  OBESE_III: { min: 40.0, max: 999, category: 'Obese Class III', remark: 'Very severely obese', color: '#991B1B' },
 };
 
 // Target BMI Ranges
 const TARGET_BMI_RANGES = {
   ADULT: { min: 18.5, max: 24.9 },
-  SENIOR: { min: 18.5, max: 27.0 } // for adults 65+
+  SENIOR: { min: 18.5, max: 27.0 }, // for adults 65+
 };
 
 // Age Thresholds
@@ -201,7 +201,7 @@ const AGE_THRESHOLDS = { SENIOR: 65 };
  * Calculate BMI (Body Mass Index)
  */
 export const calculateBMI = (weight, height) => {
-  if (!weight || !height || weight <= 0 || height <= 0) return 0;
+  if (!weight || !height || weight <= 0 || height <= 0) {return 0;}
 
   const heightInMeters = height / 100;
   const bmi = weight / (heightInMeters * heightInMeters);

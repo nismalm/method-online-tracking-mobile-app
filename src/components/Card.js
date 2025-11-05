@@ -10,7 +10,7 @@ const Card = ({
 }) => {
   const getCardStyle = () => {
     const styles = [cardStyles.base];
-    
+
     switch (variant) {
       case 'default':
         styles.push(cardStyles.default);
@@ -25,11 +25,11 @@ const Card = ({
         styles.push(cardStyles.ghost);
         break;
     }
-    
+
     if (style) {
       styles.push(style);
     }
-    
+
     return styles;
   };
 

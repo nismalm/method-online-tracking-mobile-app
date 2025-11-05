@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import {TextInput, Button} from '../components';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
@@ -127,7 +127,7 @@ const EditTrainerModal = ({visible, onClose, trainer, onTrainerUpdated}) => {
     }
   };
 
-  if (!trainer) return null;
+  if (!trainer) {return null;}
 
   return (
     <Modal

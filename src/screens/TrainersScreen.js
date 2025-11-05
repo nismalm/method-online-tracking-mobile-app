@@ -20,7 +20,7 @@ import PhoneIcon from '../../assets/icons/phoneIcon';
 import CalendarIcon from '../../assets/icons/calendarIcon';
 import SearchIcon from '../../assets/icons/searchIcon';
 import UserSearchIcon from '../../assets/icons/userSearchIcon';
-import AuthService from '../services/authService';
+import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
@@ -156,7 +156,7 @@ const TrainersScreen = () => {
       `Email: ${trainer.email}\nMobile: ${trainer.mobile}\nStatus: ${trainer.status}`,
       buttons
     );
-  }, []);
+  }, [handleToggleStatus, handleDeleteTrainer]);
 
   const handleToggleStatus = useCallback(async (trainer, newStatus) => {
     try {
