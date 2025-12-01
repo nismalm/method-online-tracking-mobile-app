@@ -3,6 +3,6 @@ module.exports = {
   plugins: [
     'react-native-reanimated/plugin',
   ],
-  // Removed transform-remove-console to keep error logging in production builds
-  // This helps with debugging Release builds on physical devices
+  // Keep console logs in production for debugging production issues
+  // This helps diagnose issues when users report problems
 };

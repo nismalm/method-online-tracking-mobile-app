@@ -18,10 +18,7 @@ import {useAuth} from '../context/AuthContext';
 import UserIcon from '../../assets/icons/userIcon';
 import ChevronRightIcon from '../../assets/icons/chevronRightIcon';
 import LockIcon from '../../assets/icons/lockIcon';
-import BellIcon from '../../assets/icons/bellIcon';
-import InfoIcon from '../../assets/icons/infoIcon';
 import LogoutIcon from '../../assets/icons/logoutIcon';
-import PasswordIcon from '../../assets/icons/passwordIcon';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 const ProfileHeader = ({userProfile}) => (
@@ -325,14 +322,16 @@ const ProfileScreen = () => {
               label="Change Password"
               onPress={() => setShowPasswordModal(true)}
             />
-            <MenuItem
+            {/* Commented out for future release */}
+            {/* <MenuItem
               icon={BellIcon}
               label="Notifications"
               onPress={() => console.log('Notifications')}
-            />
+            /> */}
           </View>
 
-          <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+          {/* Commented out for future release */}
+          {/* <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
             ABOUT
           </Text>
           <View style={styles.menuContainer}>
@@ -341,7 +340,7 @@ const ProfileScreen = () => {
               label="About"
               onPress={() => console.log('About')}
             />
-          </View>
+          </View> */}
 
           <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
             ACTIONS

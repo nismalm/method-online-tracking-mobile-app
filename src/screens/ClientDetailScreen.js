@@ -36,7 +36,7 @@ const ClientDetailScreen = ({route, navigation}) => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('activities');
 
   // Modal states
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -407,7 +407,27 @@ const ClientDetailScreen = ({route, navigation}) => {
     return STATUS_COLORS[client.status] || COLORS.brandTextSecondary;
   };
 
+  // Get recent weight from weightHistory
+  const getRecentWeight = () => {
+    const weightHistory = client.weightHistory || [];
+    if (weightHistory.length > 0) {
+      // Sort by date descending and get the most recent
+      const sortedWeights = [...weightHistory].sort((a, b) => {
+        const dateA = new Date(a.date.split('/').reverse().join('-'));
+        const dateB = new Date(b.date.split('/').reverse().join('-'));
+        return dateB - dateA;
+      });
+      return {
+        weight: sortedWeights[0].weight,
+        date: sortedWeights[0].date
+      };
+    }
+    return null;
+  };
+
   const renderOverviewTab = () => {
+    const recentWeight = getRecentWeight();
+
     return (
       <View style={styles.clientCard}>
         <View style={styles.clientHeader}>
@@ -540,8 +560,26 @@ const ClientDetailScreen = ({route, navigation}) => {
             <Text style={styles.detailValue}>{client.height} cm</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Weight</Text>
+            <Text style={styles.detailLabel}>Starting Weight</Text>
             <Text style={styles.detailValue}>{client.startingWeight} KG</Text>
+          </View>
+        </View>
+        <View style={styles.detailsRow}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Recent Weight</Text>
+            <Text style={styles.detailValue}>
+              {recentWeight ? `${recentWeight.weight} KG (${recentWeight.date})` : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Weight Change</Text>
+            <Text style={[
+              styles.detailValue,
+              recentWeight && recentWeight.weight < client.startingWeight && {color: COLORS.green600},
+              recentWeight && recentWeight.weight > client.startingWeight && {color: COLORS.red600}
+            ]}>
+              {recentWeight ? `${(recentWeight.weight - client.startingWeight).toFixed(1)} KG` : 'N/A'}
+            </Text>
           </View>
         </View>
         <View style={styles.detailsRow}>
@@ -866,7 +904,8 @@ const styles = StyleSheet.create({
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 10,
+    columnGap: 40,
   },
   detailItem: {
     flex: 1,

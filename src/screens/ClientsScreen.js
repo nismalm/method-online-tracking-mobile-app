@@ -86,11 +86,16 @@ const ClientCard = ({client, onPress}) => {
   );
 };
 
-const ClientsScreen = ({navigation}) => {
+const ClientsScreen = ({navigation, route}) => {
   const {user, isSuperAdmin} = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('active'); // Changed default from 'all' to 'active'
-  const [filterTrainer, setFilterTrainer] = useState('myClients'); // Default to 'myClients' for super admins
+  // Get initial filter values from navigation params or use defaults
+  const [filterStatus, setFilterStatus] = useState(
+    route?.params?.filterStatus || 'active'
+  );
+  const [filterTrainer, setFilterTrainer] = useState(
+    route?.params?.filterTrainer || 'myClients'
+  );
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [trainers, setTrainers] = useState([]);
@@ -245,6 +250,16 @@ const ClientsScreen = ({navigation}) => {
       loadTrainers();
     }, [loadClients, loadTrainers])
   );
+
+  // Update filters when navigation params change
+  useEffect(() => {
+    if (route?.params?.filterStatus) {
+      setFilterStatus(route.params.filterStatus);
+    }
+    if (route?.params?.filterTrainer !== undefined) {
+      setFilterTrainer(route.params.filterTrainer || 'myClients');
+    }
+  }, [route?.params]);
 
   // Filter clients when search query, status, or trainer filter changes
   useEffect(() => {

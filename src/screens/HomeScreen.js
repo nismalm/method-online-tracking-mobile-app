@@ -8,16 +8,22 @@ import {useAuth} from '../context/AuthContext';
 import Header from '../components/Header';
 import AddTrainerModal from '../components/AddTrainerModal';
 import ClientFormModal from '../components/ClientFormModal';
+import BMICalculatorModal from '../components/BMICalculatorModal';
 import AddIcon from '../../assets/icons/addIcon';
 import ClientsIcon from '../../assets/icons/clientsIcon';
 import TrainerIcon from '../../assets/icons/trainerIcon';
 import LiveIcon from '../../assets/icons/liveIcon';
 import PauseIcon from '../../assets/icons/pauseIcon';
+import CalculatorIcon from '../../assets/icons/calculatorIcon';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
 // Memoized to prevent unnecessary re-renders
-const StatCard = React.memo(({title, value, IconComponent}) => (
-  <View style={styles.statCard}>
+const StatCard = React.memo(({title, value, IconComponent, onPress}) => (
+  <TouchableOpacity
+    style={styles.statCard}
+    onPress={onPress}
+    activeOpacity={0.7}
+    disabled={!onPress}>
     <View style={styles.statCardContent}>
       <View style={styles.statCardTextContainer}>
         <Text style={styles.statValue}>
@@ -31,7 +37,7 @@ const StatCard = React.memo(({title, value, IconComponent}) => (
         <IconComponent width={32} height={32} fill="#1E293B" />
       </View>
     </View>
-  </View>
+  </TouchableOpacity>
 ));
 
 // Memoized to prevent unnecessary re-renders
@@ -51,7 +57,7 @@ const QuickActionCard = React.memo(({IconComponent, label, onPress, fullWidth = 
   </TouchableOpacity>
 ));
 
-const HomeScreen = () => {
+const HomeScreen = ({navigation}) => {
   const {user, userProfile, isSuperAdmin} = useAuth();
   const [trainersCount, setTrainersCount] = useState(0);
   const [clientCounts, setClientCounts] = useState({
@@ -61,6 +67,7 @@ const HomeScreen = () => {
   });
   const [showAddTrainerModal, setShowAddTrainerModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [showBMICalculatorModal, setShowBMICalculatorModal] = useState(false);
 
   // Fetch trainers count (memoized)
   const fetchTrainersCount = useCallback(async () => {
@@ -145,6 +152,41 @@ const HomeScreen = () => {
     fetchClientCounts(); // Refresh the counts
   }, [fetchClientCounts]);
 
+  // Navigation handlers for stat cards
+  const handleTotalClientsPress = useCallback(() => {
+    navigation.navigate('Clients', {
+      screen: 'ClientsList',
+      params: {
+        filterStatus: 'all',
+        filterTrainer: isAdmin() ? 'myClients' : null,
+      },
+    });
+  }, [navigation, isAdmin]);
+
+  const handleActiveClientsPress = useCallback(() => {
+    navigation.navigate('Clients', {
+      screen: 'ClientsList',
+      params: {
+        filterStatus: 'active',
+        filterTrainer: isAdmin() ? 'myClients' : null,
+      },
+    });
+  }, [navigation, isAdmin]);
+
+  const handlePausedClientsPress = useCallback(() => {
+    navigation.navigate('Clients', {
+      screen: 'ClientsList',
+      params: {
+        filterStatus: 'paused',
+        filterTrainer: isAdmin() ? 'myClients' : null,
+      },
+    });
+  }, [navigation, isAdmin]);
+
+  const handleTrainersPress = useCallback(() => {
+    navigation.navigate('Trainers');
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.scrollView}>
@@ -160,14 +202,34 @@ const HomeScreen = () => {
             Overview
           </Text>
           <View style={styles.statsRow}>
-            <StatCard title="Total Clients" value={clientCounts.total.toString()} IconComponent={ClientsIcon} />
+            <StatCard
+              title="Total Clients"
+              value={clientCounts.total.toString()}
+              IconComponent={ClientsIcon}
+              onPress={handleTotalClientsPress}
+            />
             {isAdmin() && (
-              <StatCard title="Trainers" value={trainersCount.toString()} IconComponent={TrainerIcon} />
+              <StatCard
+                title="Trainers"
+                value={trainersCount.toString()}
+                IconComponent={TrainerIcon}
+                onPress={handleTrainersPress}
+              />
             )}
           </View>
           <View style={[styles.statsRow, styles.statsRowLast]}>
-            <StatCard title="Active Clients" value={clientCounts.active.toString()} IconComponent={LiveIcon} />
-            <StatCard title="Paused Clients" value={clientCounts.paused.toString()} IconComponent={PauseIcon} />
+            <StatCard
+              title="Active Clients"
+              value={clientCounts.active.toString()}
+              IconComponent={LiveIcon}
+              onPress={handleActiveClientsPress}
+            />
+            <StatCard
+              title="Paused Clients"
+              value={clientCounts.paused.toString()}
+              IconComponent={PauseIcon}
+              onPress={handlePausedClientsPress}
+            />
           </View>
 
           {/* Quick Actions */}
@@ -202,10 +264,18 @@ const HomeScreen = () => {
             <QuickActionCard
               IconComponent={AddIcon}
               label="Diet Chart Generator"
-              onPress={() => console.log('Diet Chart Generator')}
-              fullWidth={true}
+              onPress={() => navigation.navigate('DietChartBuilder')}
+              fullWidth={false}
             />
           )}
+
+          {/* BMI Calculator - Available for all users */}
+          <QuickActionCard
+            IconComponent={CalculatorIcon}
+            label="Check BMI Score"
+            onPress={() => setShowBMICalculatorModal(true)}
+            fullWidth={false}
+          />
         </View>
       </ScrollView>
 
@@ -224,6 +294,12 @@ const HomeScreen = () => {
         onClose={() => setShowAddClientModal(false)}
         onClientAdded={handleClientAdded}
         mode="add"
+      />
+
+      {/* BMI Calculator Modal - For all users */}
+      <BMICalculatorModal
+        visible={showBMICalculatorModal}
+        onClose={() => setShowBMICalculatorModal(false)}
       />
     </SafeAreaView>
   );
@@ -293,7 +369,7 @@ const styles = StyleSheet.create({
   },
   quickActionCard: {
     borderRadius: BORDER_RADIUS.lg,
-    padding: 20,
+    padding: 12,
     marginBottom: 12,
     backgroundColor: COLORS.brandPrimary,
     flex: 1,

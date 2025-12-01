@@ -80,33 +80,60 @@ const ActivityDetailsModal = ({
     );
   };
 
+  // Helper function to get badge color based on percentage
+  const getPercentageBadgeColor = (percentage) => {
+    if (percentage === 100) return COLORS.green500;
+    if (percentage >= 67) return '#FFB800'; // Yellow
+    if (percentage >= 33) return '#FF8C00'; // Orange
+    return COLORS.red500;
+  };
+
   const renderActivityView = () => {
     if (!activity || !activity.responses || activity.responses.length === 0) {
       return renderNoActivityView();
     }
+
+    // Get progress data (use new format, fallback to calculation for old data)
+    const progressPercentage = activity.progress?.percentage ||
+      Math.round((activity.responses.filter(r => r.completed).length / activity.responses.length) * 100);
 
     return (
       <BottomSheetScrollView
         style={styles.activityContent}
         contentContainerStyle={styles.activityContentContainer}
         showsVerticalScrollIndicator={false}>
-        {/* Activity Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryText}>
-            {activity.responses.filter(r => r.completed).length} of {activity.responses.length} completed
-          </Text>
+        {/* Progress Summary Card */}
+        <View style={styles.progressSummaryCard}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Daily Progress</Text>
+            <Text style={styles.progressPercentage}>{progressPercentage}%</Text>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={styles.progressBarContainer}>
+            <View style={[
+              styles.progressBarFill,
+              {
+                width: `${progressPercentage}%`,
+                backgroundColor: progressPercentage === 100 ? COLORS.green500 :
+                               progressPercentage >= 75 ? '#FFB800' :
+                               progressPercentage >= 50 ? '#FF8C00' : COLORS.red500
+              }
+            ]} />
+          </View>
         </View>
 
         {/* Responses */}
         {activity.responses.map((response, index) => (
           <View key={index} style={styles.responseCard}>
             <View style={styles.responseRow}>
+              {/* Percentage Badge */}
               <View style={[
-                styles.statusBadge,
-                response.completed ? styles.statusBadgeCompleted : styles.statusBadgeIncomplete,
+                styles.percentageBadge,
+                {backgroundColor: getPercentageBadgeColor(response.percentage || (response.completed ? 100 : 0))}
               ]}>
-                <Text style={styles.statusBadgeText}>
-                  {response.completed ? '✓' : '✕'}
+                <Text style={styles.percentageBadgeText}>
+                  {response.percentage || (response.completed ? 100 : 0)}%
                 </Text>
               </View>
               <View style={styles.responseContent}>
@@ -232,6 +259,56 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.base,
     fontFamily: FONTS.bold,
     color: COLORS.brandDarkest,
+  },
+  // New Progress Styles
+  progressSummaryCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 2,
+    borderColor: COLORS.brandPrimary,
+    padding: 16,
+    marginBottom: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressLabel: {
+    fontSize: FONT_SIZES.base,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandDark,
+  },
+  progressPercentage: {
+    fontSize: FONT_SIZES['3xl'],
+    fontFamily: FONTS.bold,
+    color: COLORS.brandDarkest,
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: COLORS.brandPrimaryLight,
+    borderRadius: BORDER_RADIUS.sm,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  percentageBadge: {
+    minWidth: 44,
+    height: 28,
+    borderRadius: BORDER_RADIUS.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+    paddingHorizontal: 8,
+  },
+  percentageBadgeText: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.bold,
+    color: COLORS.white,
   },
   responseCard: {
     backgroundColor: COLORS.white,

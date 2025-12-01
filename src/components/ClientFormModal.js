@@ -166,12 +166,15 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
       // Create filename with client name
       const fileName = `${createdClientData.name.replace(/\s+/g, '_')}-Credentials.png`;
+      // const messageToShare = "Hello and Welcome to METHOD! \nPlease use the link below to install the METHOD Clients Application on your device: \n🔗 https://method-online-tracker.web.app \nFollow the on-screen instructions to complete the setup. \nUse your registered mobile number and the login code provided in the image to access your account.\nIf you face any issues during installation or login, please contact our support team. \nBest regards,\nThe METHOD Team"
+      const messageToShare =
+'Welcome to METHOD! \n\nInstall the METHOD Clients App using the link below:\nhttps://method-online-tracker.web.app \n\nUse your registered mobile number and the login code in the image to log in.\n\nFor any issues, contact our support team.\n\n– Team METHOD';
 
       // Share the captured image using native share dialog
       await Share.open({
         url: `file://${uri}`,
         title: 'Share Client Credentials',
-        message: 'Client Login Credentials for METHOD ONLINE TRACKING APPLICATION',
+        message: messageToShare,
         filename: fileName,
       });
 

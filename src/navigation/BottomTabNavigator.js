@@ -10,8 +10,8 @@ import ClientIcon from '../../assets/icons/clientsIcon';
 import TrainerIcon from '../../assets/icons/trainerIcon';
 import ProfileIcon from '../../assets/icons/profileIcon';
 
-// Import screens
-import HomeScreen from '../screens/HomeScreen';
+// Import screens and navigators
+import HomeStackNavigator from './HomeStackNavigator';
 import ClientsStackNavigator from './ClientsStackNavigator';
 import TrainersScreen from '../screens/TrainersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -92,7 +92,7 @@ const BottomTabNavigator = () => {
         tabBarIcon: ({focused}) => getTabBarIcon({focused, route}),
       })}>
       {/* Home tab - Visible to all users */}
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={HomeStackNavigator} />
 
       <Tab.Screen name="Clients" component={ClientsStackNavigator} />
 
