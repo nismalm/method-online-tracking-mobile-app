@@ -146,6 +146,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdClientData, setCreatedClientData] = useState({
     name: '',
+    mobile: '',
     loginCode: '',
     bmiData: null,
   });
@@ -166,9 +167,9 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
       // Create filename with client name
       const fileName = `${createdClientData.name.replace(/\s+/g, '_')}-Credentials.png`;
-      // const messageToShare = "Hello and Welcome to METHOD! \nPlease use the link below to install the METHOD Clients Application on your device: \n🔗 https://method-online-tracker.web.app \nFollow the on-screen instructions to complete the setup. \nUse your registered mobile number and the login code provided in the image to access your account.\nIf you face any issues during installation or login, please contact our support team. \nBest regards,\nThe METHOD Team"
+      // const messageToShare = "Hello and Welcome to METHOD! \nPlease use the link below to install the METHOD Clients Application on your device: \n🔗 https://client-app.methodbybinshad.com/ \nFollow the on-screen instructions to complete the setup. \nUse your registered mobile number and the login code provided in the image to access your account.\nIf you face any issues during installation or login, please contact our support team. \nBest regards,\nThe METHOD Team"
       const messageToShare =
-'Welcome to METHOD! \n\nInstall the METHOD Clients App using the link below:\nhttps://method-online-tracker.web.app \n\nUse your registered mobile number and the login code in the image to log in.\n\nFor any issues, contact our support team.\n\n– Team METHOD';
+'Welcome to METHOD! \n\nInstall the METHOD Clients App using the link below:\nhttps://client-app.methodbybinshad.com/ \n\nUse your registered mobile number and the login code in the image to log in.\n\nFor any issues, contact our support team.\n\n– Team METHOD';
 
       // Share the captured image using native share dialog
       await Share.open({
@@ -375,7 +376,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
         );
 
         if (result.success) {
-          handleClientCreated(clientData.name, result.loginCode, result.bmiAnalysis);
+          handleClientCreated(clientData.name, clientData.mobile, result.loginCode, result.bmiAnalysis);
           onClientAdded?.();
         } else {
           Alert.alert('Error', result.error || 'Failed to create client');
@@ -419,6 +420,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     setShowSuccessModal(false);
     setCreatedClientData({
       name: '',
+      mobile: '',
       loginCode: '',
       bmiData: null,
     });
@@ -426,9 +428,10 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
   }, [resetForm]);
 
   // Handle client created
-  const handleClientCreated = useCallback((clientName, loginCode, bmiAnalysis) => {
+  const handleClientCreated = useCallback((clientName, clientMobile, loginCode, bmiAnalysis) => {
     setCreatedClientData({
       name: clientName,
+      mobile: clientMobile,
       loginCode: loginCode,
       bmiData: bmiAnalysis,
     });
@@ -748,14 +751,27 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                 />
               </View>
 
-              {/* Login Code */}
-              <View style={styles.loginCodeContainer}>
-                <Text style={styles.loginCodeLabel}>
-                  CLIENT LOGIN CODE
+              {/* Login Credentials Box */}
+              <View style={styles.loginCredentialsBox}>
+                <Text style={styles.loginCredentialsHeading}>
+                  Login Credentials
                 </Text>
-                <Text style={styles.loginCodeText}>
-                  {createdClientData.loginCode}
-                </Text>
+
+                <View style={styles.credentialsRow}>
+                  <View style={styles.credentialColumn}>
+                    <Text style={styles.credentialLabel}>Login Code:</Text>
+                    <Text style={styles.credentialValue}>
+                      {createdClientData.loginCode}
+                    </Text>
+                  </View>
+
+                  <View style={styles.credentialColumn}>
+                    <Text style={styles.credentialLabel}>Mobile:</Text>
+                    <Text style={styles.credentialValue}>
+                      {createdClientData.mobile}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               {/* BMI Analysis */}
@@ -1029,20 +1045,36 @@ const styles = StyleSheet.create({
   modalLogo: {
     height: 70,
   },
-  loginCodeContainer: {
+  loginCredentialsBox: {
+    backgroundColor: COLORS.brandDarkest,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
   },
-  loginCodeLabel: {
-    fontSize: FONT_SIZES.xs,
-    color: COLORS.gray500,
-    fontFamily: FONTS.medium,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  loginCredentialsHeading: {
+    fontSize: FONT_SIZES.base,
+    color: COLORS.brandPrimary,
+    fontFamily: FONTS.bold,
+    textAlign: 'center',
+    marginBottom: 12,
   },
-  loginCodeText: {
-    fontSize: FONT_SIZES.lg,
-    color: COLORS.gray900,
+  credentialsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  credentialColumn: {
+    flex: 1,
+  },
+  credentialLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.brandPrimary,
+    fontFamily: FONTS.medium,
+    marginBottom: 4,
+  },
+  credentialValue: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.brandPrimary,
     fontFamily: FONTS.bold,
   },
   bmiContainer: {
