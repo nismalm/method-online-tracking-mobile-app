@@ -93,7 +93,6 @@ export const updateClient = async (clientId, updateData) => {
   try {
     const body = {};
     if (updateData.name !== undefined) {body.name = updateData.name;}
-    if (updateData.email !== undefined) {body.email = updateData.email;}
     if (updateData.mobile !== undefined) {body.phone = updateData.mobile;}
     if (updateData.age !== undefined) {body.age = Number(updateData.age);}
     if (updateData.gender !== undefined) {body.gender = GENDER_TO_API[updateData.gender] || updateData.gender;}

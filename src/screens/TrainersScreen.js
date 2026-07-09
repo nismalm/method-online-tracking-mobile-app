@@ -59,7 +59,7 @@ const TrainerCard = React.memo(({trainer, onPress}) => {
         <View style={styles.trainerDate}>
           <CalendarIcon width={16} height={16} stroke={COLORS.brandTextSecondary} />
           <Text style={styles.trainerDateText}>
-            Added {new Date(trainer.createdAt.toDate()).toLocaleDateString()}
+            Added {new Date(trainer.createdAt).toLocaleDateString()}
           </Text>
         </View>
       )}

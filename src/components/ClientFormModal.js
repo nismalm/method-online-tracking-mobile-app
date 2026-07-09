@@ -52,24 +52,6 @@ const validateField = (fieldName, value) => {
       }
       return '';
 
-    case 'email':
-      if (!trimmedValue) {
-        return 'Email is required';
-      }
-      if (!VALIDATION_RULES.email.pattern.test(trimmedValue)) {
-        return 'Please enter a valid email address';
-      }
-      return '';
-
-    case 'email':
-      if (!trimmedValue) {
-        return 'Email is required';
-      }
-      if (!VALIDATION_RULES.email.pattern.test(trimmedValue)) {
-        return 'Please enter a valid email address';
-      }
-      return '';
-
     case 'mobile':
       if (!trimmedValue) {
         return 'Mobile number is required';
@@ -509,24 +491,6 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                     error={errors.name}
                     editable={!loading}
                   />
-                </View>
-
-                {/* Email Input */}
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    label="Email"
-                    value={formData.email}
-                    onChangeText={(text) => updateField('email', text.trim())}
-                    placeholder="client@email.com"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    error={errors.email}
-                    editable={!loading}
-                  />
-                  <Text style={styles.helperText}>
-                    The client will use this email to sign in.
-                  </Text>
                 </View>
 
                 {/* Email Input */}

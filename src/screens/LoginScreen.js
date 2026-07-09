@@ -14,9 +14,11 @@ import {TextInput, Button} from '../components';
 import MailIcon from '../../assets/icons/mailIcon';
 import PasswordIcon from '../../assets/icons/lockIcon';
 import * as AuthService from '../services/authService';
+import {useAuth} from '../context/AuthContext';
 import {COLORS, FONTS, FONT_SIZES} from '../constants/theme';
 
 const LoginScreen = () => {
+  const {refreshUserProfile} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,8 +61,7 @@ const LoginScreen = () => {
       const result = await AuthService.signIn(email, password);
 
       if (result.success) {
-        // Login successful - auth state listener in App.js will handle navigation
-        console.log('Login successful:', result.user.email);
+        await refreshUserProfile();
       } else {
         // Show error message
         Alert.alert('Login Failed', result.error);
