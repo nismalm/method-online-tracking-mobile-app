@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Free Exercises (1306)</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 20px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 14px;
+    }
+
+    header h1 span {
+      color: #6366f1;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 200px;
+      max-width: 360px;
+    }
+
+    .search-wrap input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-wrap input:focus { border-color: #6366f1; }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      pointer-events: none;
+    }
+
+    select {
+      padding: 8px 12px;
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    select:focus { border-color: #6366f1; }
+
+    .count-badge {
+      margin-left: auto;
+      font-size: 13px;
+      color: #888;
+      white-space: nowrap;
+    }
+
+    .count-badge strong { color: #6366f1; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 20px 24px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .card:hover {
+      border-color: #6366f1;
+      transform: translateY(-2px);
+    }
+
+    .gif-wrap {
+      position: relative;
+      background: #111;
+      aspect-ratio: 1;
+      overflow: hidden;
+    }
+
+    .gif-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gif-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .card-body {
+      padding: 12px;
+    }
+
+    .card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      text-transform: capitalize;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      text-transform: capitalize;
+      font-weight: 500;
+    }
+
+    .tag-body { background: #1e2a4a; color: #7ca3f5; }
+    .tag-muscle { background: #1f2e20; color: #6fcf72; }
+    .tag-equip { background: #2d2018; color: #e09a52; }
+
+    /* Modal */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      position: sticky;
+      top: 0;
+      background: #1a1a1a;
+      padding: 16px 20px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: capitalize;
+    }
+
+    .close-btn {
+      background: #2a2a2a;
+      border: none;
+      color: #aaa;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .close-btn:hover { background: #3a3a3a; color: #fff; }
+
+    .modal-gif {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: #111;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .modal-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .instructions-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .instructions-list li {
+      font-size: 13px;
+      color: #ccc;
+      line-height: 1.5;
+      padding-left: 28px;
+      position: relative;
+    }
+
+    .step-num {
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: #6366f1;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px;
+      gap: 16px;
+      color: #888;
+      font-size: 14px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #2a2a2a;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center;
+      padding: 80px 20px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .load-more-wrap {
+      text-align: center;
+      padding: 24px;
+    }
+
+    .load-more-btn {
+      padding: 10px 28px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .load-more-btn:hover { background: #5254cc; }
+    .load-more-btn:disabled { background: #333; color: #666; cursor: default; }
+
+    .secondary-label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 14px;
+    }
+
+    .secondary-label span { color: #888; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Exercise DB <span>Free 1306</span></h1>
+  <div class="controls">
+    <div class="search-wrap">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input id="search" type="text" placeholder="Search exercises..." />
+    </div>
+    <select id="filterBody">
+      <option value="">All body parts</option>
+    </select>
+    <select id="filterEquip">
+      <option value="">All equipment</option>
+    </select>
+    <select id="filterMuscle">
+      <option value="">All muscles</option>
+    </select>
+    <div class="count-badge" id="countBadge"></div>
+  </div>
+</header>
+
+<div id="loader" class="loader">
+  <div class="spinner"></div>
+  <span>Loading 1500 exercises...</span>
+</div>
+
+<div id="grid" class="grid" style="display:none"></div>
+<div id="loadMoreWrap" class="load-more-wrap" style="display:none">
+  <button id="loadMoreBtn" class="load-more-btn">Load more</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="close-btn" id="closeBtn">&#x2715;</button>
+    </div>
+    <img class="modal-gif" id="modalGif" src="" alt="" />
+    <div class="modal-body">
+      <div class="modal-tags" id="modalTags"></div>
+      <div class="modal-section-title">Instructions</div>
+      <ol class="instructions-list" id="modalInstructions"></ol>
+      <div class="secondary-label" id="modalSecondary"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PAGE_SIZE = 60;
+
+  let allExercises = [];
+  let filtered = [];
+  let displayedCount = 0;
+
+  async function fetchAll() {
+    const res = await fetch('./exercises_data.json');
+    return res.json();
+  }
+
+  function buildFilters(exercises) {
+    const bodyParts = new Set();
+    const equipments = new Set();
+    const muscles = new Set();
+
+    exercises.forEach(ex => {
+      ex.bodyParts.forEach(b => bodyParts.add(b));
+      ex.equipments.forEach(e => equipments.add(e));
+      ex.targetMuscles.forEach(m => muscles.add(m));
+    });
+
+    const filterBody = document.getElementById('filterBody');
+    const filterEquip = document.getElementById('filterEquip');
+    const filterMuscle = document.getElementById('filterMuscle');
+
+    [...bodyParts].sort().forEach(v => {
+      filterBody.innerHTML += `<option value="${v}">${v}</option>`;
+    });
+    [...equipments].sort().forEach(v => {
+      filterEquip.innerHTML += `<option value="${v}">${v}</option>`;
+    });
+    [...muscles].sort().forEach(v => {
+      filterMuscle.innerHTML += `<option value="${v}">${v}</option>`;
+    });
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const body = document.getElementById('filterBody').value;
+    const equip = document.getElementById('filterEquip').value;
+    const muscle = document.getElementById('filterMuscle').value;
+
+    filtered = allExercises.filter(ex => {
+      if (q && !ex.name.toLowerCase().includes(q)) return false;
+      if (body && !ex.bodyParts.includes(body)) return false;
+      if (equip && !ex.equipments.includes(equip)) return false;
+      if (muscle && !ex.targetMuscles.includes(muscle)) return false;
+      return true;
+    });
+
+    displayedCount = 0;
+    document.getElementById('grid').innerHTML = '';
+    renderCards();
+    updateCount();
+  }
+
+  function createCard(ex) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const gifWrap = document.createElement('div');
+    gifWrap.className = 'gif-wrap';
+
+    const img = document.createElement('img');
+    img.src = ex.gifUrl;
+    img.alt = ex.name;
+    img.loading = 'lazy';
+    img.onerror = () => {
+      gifWrap.innerHTML = '<div class="gif-placeholder">&#x1F4AA;</div>';
+    };
+    gifWrap.appendChild(img);
+
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const name = document.createElement('div');
+    name.className = 'card-name';
+    name.textContent = ex.name;
+
+    const tags = document.createElement('div');
+    tags.className = 'tags';
+
+    ex.bodyParts.forEach(b => {
+      const t = document.createElement('span');
+      t.className = 'tag tag-body';
+      t.textContent = b;
+      tags.appendChild(t);
+    });
+
+    ex.targetMuscles.slice(0, 2).forEach(m => {
+      const t = document.createElement('span');
+      t.className = 'tag tag-muscle';
+      t.textContent = m;
+      tags.appendChild(t);
+    });
+
+    if (ex.equipments[0] && ex.equipments[0] !== 'body weight') {
+      const t = document.createElement('span');
+      t.className = 'tag tag-equip';
+      t.textContent = ex.equipments[0];
+      tags.appendChild(t);
+    }
+
+    body.appendChild(name);
+    body.appendChild(tags);
+    card.appendChild(gifWrap);
+    card.appendChild(body);
+
+    card.addEventListener('click', () => openModal(ex));
+    return card;
+  }
+
+  function renderCards() {
+    const grid = document.getElementById('grid');
+    const next = filtered.slice(displayedCount, displayedCount + PAGE_SIZE);
+    next.forEach(ex => grid.appendChild(createCard(ex)));
+    displayedCount += next.length;
+
+    const wrap = document.getElementById('loadMoreWrap');
+    const btn = document.getElementById('loadMoreBtn');
+    if (displayedCount < filtered.length) {
+      wrap.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = `Load more (${filtered.length - displayedCount} remaining)`;
+    } else {
+      wrap.style.display = 'none';
+    }
+  }
+
+  function updateCount() {
+    const badge = document.getElementById('countBadge');
+    badge.innerHTML = `<strong>${filtered.length}</strong> exercises`;
+  }
+
+  function openModal(ex) {
+    document.getElementById('modalTitle').textContent = ex.name;
+    document.getElementById('modalGif').src = ex.gifUrl;
+    document.getElementById('modalGif').alt = ex.name;
+
+    const tagsEl = document.getElementById('modalTags');
+    tagsEl.innerHTML = '';
+
+    ex.bodyParts.forEach(b => {
+      tagsEl.innerHTML += `<span class="tag tag-body">${b}</span>`;
+    });
+    ex.targetMuscles.forEach(m => {
+      tagsEl.innerHTML += `<span class="tag tag-muscle">${m}</span>`;
+    });
+    ex.equipments.forEach(e => {
+      tagsEl.innerHTML += `<span class="tag tag-equip">${e}</span>`;
+    });
+
+    const list = document.getElementById('modalInstructions');
+    list.innerHTML = '';
+    ex.instructions.forEach((step, i) => {
+      const text = step.replace(/^Step:\d+\s*/i, '');
+      list.innerHTML += `
+        <li>
+          <span class="step-num">${i + 1}</span>
+          ${text}
+        </li>`;
+    });
+
+    if (ex.secondaryMuscles.length) {
+      document.getElementById('modalSecondary').innerHTML =
+        `Secondary muscles: <span>${ex.secondaryMuscles.join(', ')}</span>`;
+    } else {
+      document.getElementById('modalSecondary').innerHTML = '';
+    }
+
+    document.getElementById('overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('closeBtn').addEventListener('click', closeModal);
+  document.getElementById('overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('overlay')) closeModal();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  document.getElementById('loadMoreBtn').addEventListener('click', renderCards);
+
+  ['search', 'filterBody', 'filterEquip', 'filterMuscle'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener(id === 'search' ? 'input' : 'change', applyFilters);
+  });
+
+  (async () => {
+    try {
+      allExercises = await fetchAll();
+      buildFilters(allExercises);
+      filtered = allExercises;
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('grid').style.display = 'grid';
+      renderCards();
+      updateCount();
+    } catch (err) {
+      document.getElementById('loader').innerHTML =
+        `<div style="color:#e55">Failed to load exercises. Check your connection.</div>`;
+    }
+  })();
+</script>
+</body>
+</html>

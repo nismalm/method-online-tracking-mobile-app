@@ -108,7 +108,7 @@ const ClientDetailScreen = ({route, navigation}) => {
 
   // Load activities for selected package
   const loadActivities = useCallback(async (packageId) => {
-    if (!packageId) {
+    if (!packageId || !clientId) {
       return;
     }
 
@@ -120,7 +120,7 @@ const ClientDetailScreen = ({route, navigation}) => {
 
     setActivitiesLoading(true);
     try {
-      const result = await PackageService.getPackageActivities(packageId);
+      const result = await PackageService.getPackageActivities(clientId, packageId);
       if (result.success) {
         setActivities(result.activities);
         // Cache the result
@@ -134,7 +134,7 @@ const ClientDetailScreen = ({route, navigation}) => {
     } finally {
       setActivitiesLoading(false);
     }
-  }, [packageCache]);
+  }, [packageCache, clientId]);
 
   // Handle refresh for activities tab
   const onRefresh = useCallback(async () => {
@@ -594,8 +594,8 @@ const ClientDetailScreen = ({route, navigation}) => {
         </View>
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Login Code</Text>
-            <Text style={styles.detailValue}>{client.loginCode}</Text>
+            <Text style={styles.detailLabel}>Email</Text>
+            <Text style={styles.detailValue}>{client.email || '-'}</Text>
           </View>
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>BMI</Text>

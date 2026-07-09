@@ -17,7 +17,7 @@ import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {TextInput, Button, Dropdown} from '../components';
 import * as ClientService from '../services/clientService';
-import * as DayCalculator from '../utils/dayCalculator';
+import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import ShareIcon from '../../assets/icons/shareIcon';
 import {
@@ -40,6 +40,33 @@ const validateField = (fieldName, value) => {
       }
       if (trimmedValue.length < VALIDATION_RULES.name.minLength) {
         return 'Name must be at least 2 characters';
+      }
+      return '';
+
+    case 'email':
+      if (!trimmedValue) {
+        return 'Email is required';
+      }
+      if (!VALIDATION_RULES.email.pattern.test(trimmedValue)) {
+        return 'Please enter a valid email address';
+      }
+      return '';
+
+    case 'email':
+      if (!trimmedValue) {
+        return 'Email is required';
+      }
+      if (!VALIDATION_RULES.email.pattern.test(trimmedValue)) {
+        return 'Please enter a valid email address';
+      }
+      return '';
+
+    case 'email':
+      if (!trimmedValue) {
+        return 'Email is required';
+      }
+      if (!VALIDATION_RULES.email.pattern.test(trimmedValue)) {
+        return 'Please enter a valid email address';
       }
       return '';
 
@@ -120,12 +147,13 @@ const formatDate = (date) => {
 };
 
 const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode = 'add'}) => {
-  const {user} = useAuth();
+  const {user, isSuperAdmin, refreshUserProfile} = useAuth();
   const isEditMode = mode === 'edit' && client !== null;
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     mobile: '',
     age: '',
     gender: '',
@@ -146,10 +174,15 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdClientData, setCreatedClientData] = useState({
     name: '',
+    email: '',
     mobile: '',
-    loginCode: '',
+    tempPassword: '',
     bmiData: null,
   });
+
+  // Trainer selection (super admin only)
+  const [trainers, setTrainers] = useState([]);
+  const [selectedTrainerId, setSelectedTrainerId] = useState('');
 
   // Share functionality
   const credentialsRef = useRef();
@@ -159,7 +192,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     try {
       setIsSharing(true);
 
-      // Capture the credentials section (logo + login code + BMI) as PNG
+      // Capture the credentials section (logo + temp password + BMI) as PNG
       const uri = await captureRef(credentialsRef, {
         format: 'png',
         quality: 1.0,
@@ -167,9 +200,8 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
       // Create filename with client name
       const fileName = `${createdClientData.name.replace(/\s+/g, '_')}-Credentials.png`;
-      // const messageToShare = "Hello and Welcome to METHOD! \nPlease use the link below to install the METHOD Clients Application on your device: \n🔗 https://client-app.methodbybinshad.com/ \nFollow the on-screen instructions to complete the setup. \nUse your registered mobile number and the login code provided in the image to access your account.\nIf you face any issues during installation or login, please contact our support team. \nBest regards,\nThe METHOD Team"
       const messageToShare =
-'Welcome to METHOD! \n\nInstall the METHOD Clients App using the link below:\nhttps://client-app.methodbybinshad.com/ \n\nUse your registered mobile number and the login code in the image to log in.\n\nFor any issues, contact our support team.\n\n– Team METHOD';
+'Welcome to METHOD! \n\nInstall the METHOD Clients App using the link below:\nhttps://client-app.methodbybinshad.com/ \n\nSign in with your registered email and the temporary password shown in the image. You will be asked to set a new password on first login.\n\nFor any issues, contact our support team.\n\n- Team METHOD';
 
       // Share the captured image using native share dialog
       await Share.open({
@@ -193,11 +225,21 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     }
   };
 
+  // Load trainers for super admin add mode
+  useEffect(() => {
+    if (visible && isSuperAdmin() && !isEditMode) {
+      AuthService.getAllTrainers().then(result => {
+        if (result.success) {setTrainers(result.trainers);}
+      });
+    }
+  }, [visible, isSuperAdmin, isEditMode]);
+
   // Populate form data when editing
   useEffect(() => {
     if (isEditMode && client) {
       setFormData({
         name: client.name || '',
+        email: client.email || '',
         mobile: client.mobile || '',
         age: String(client.age) || '',
         gender: client.gender || '',
@@ -293,37 +335,10 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
       if (isEditMode) {
         const packageDays = parseInt(formData.packageType.trim(), 10);
         const newStartDate = formatDate(startDate);
-        const newEndDate = DayCalculator.calculateEndDate(newStartDate, packageDays);
 
-        // Calculate what the status should be based on the new dates
-        // Create a temporary client object to analyze
-        const tempClient = {
-          ...client,
-          startDate: newStartDate,
-          endDate: newEndDate,
-          package: packageDays,
-          pauseHistory: client.pauseHistory || [],
-        };
-
-        // Get day analysis to determine correct status
-        const dayAnalysis = DayCalculator.getClientDayAnalysis(tempClient);
-
-        // Determine new status
-        let newStatus = client.status;
-
-        // Only auto-update status if client is currently active or completed
-        // Don't change status if paused or stopped (those are manual states)
-        if (client.status === 'active' || client.status === 'completed') {
-          if (dayAnalysis.isCompleted) {
-            newStatus = 'completed';
-          } else {
-            newStatus = 'active';
-          }
-        }
-
-        // Update existing client
         const updateData = {
           name: formData.name.trim(),
+          email: formData.email.trim(),
           mobile: formData.mobile.trim(),
           age: parseInt(formData.age.trim(), 10),
           gender: formData.gender.trim(),
@@ -333,8 +348,6 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           package: packageDays,
           trainingMode: formData.trainingMode.trim(),
           startDate: newStartDate,
-          endDate: newEndDate,
-          status: newStatus,
         };
 
         const result = await ClientService.updateClient(client.id, updateData);
@@ -350,6 +363,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
         // Create new client
         const clientData = {
           name: formData.name.trim(),
+          email: formData.email.trim(),
           mobile: formData.mobile.trim(),
           age: formData.age.trim(),
           gender: formData.gender.trim(),
@@ -367,16 +381,21 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           return;
         }
 
-        const createdByUid = user?.uid || 'unknown';
         const formattedStartDate = formatDate(startDate);
+        const resolvedTrainerId = isSuperAdmin() && selectedTrainerId
+          ? selectedTrainerId
+          : null;
         const result = await ClientService.createClient(
           clientData,
-          createdByUid,
-          formattedStartDate
+          formattedStartDate,
+          resolvedTrainerId
         );
 
         if (result.success) {
-          handleClientCreated(clientData.name, clientData.mobile, result.loginCode, result.bmiAnalysis);
+          handleClientCreated(clientData.name, clientData.email, clientData.mobile, result.tempPassword, result.bmiAnalysis);
+          if (!resolvedTrainerId && isSuperAdmin()) {
+            refreshUserProfile();
+          }
           onClientAdded?.();
         } else {
           Alert.alert('Error', result.error || 'Failed to create client');
@@ -388,12 +407,13 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     } finally {
       setLoading(false);
     }
-  }, [formData, startDate, user, onClientAdded, validateAllFields, isEditMode, client, handleClose, handleClientCreated]);
+  }, [formData, startDate, user, onClientAdded, validateAllFields, isEditMode, client, handleClose, handleClientCreated, isSuperAdmin, refreshUserProfile, selectedTrainerId]);
 
   // Reset form
   const resetForm = useCallback(() => {
     setFormData({
       name: '',
+      email: '',
       mobile: '',
       age: '',
       gender: '',
@@ -405,6 +425,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     });
     setStartDate(new Date());
     setErrors({});
+    setSelectedTrainerId('');
   }, []);
 
   // Handle modal close
@@ -420,19 +441,21 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     setShowSuccessModal(false);
     setCreatedClientData({
       name: '',
+      email: '',
       mobile: '',
-      loginCode: '',
+      tempPassword: '',
       bmiData: null,
     });
     resetForm();
   }, [resetForm]);
 
   // Handle client created
-  const handleClientCreated = useCallback((clientName, clientMobile, loginCode, bmiAnalysis) => {
+  const handleClientCreated = useCallback((clientName, clientEmail, clientMobile, tempPassword, bmiAnalysis) => {
     setCreatedClientData({
       name: clientName,
+      email: clientEmail,
       mobile: clientMobile,
-      loginCode: loginCode,
+      tempPassword: tempPassword,
       bmiData: bmiAnalysis,
     });
     onClose();
@@ -486,6 +509,42 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                     error={errors.name}
                     editable={!loading}
                   />
+                </View>
+
+                {/* Email Input */}
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    label="Email"
+                    value={formData.email}
+                    onChangeText={(text) => updateField('email', text.trim())}
+                    placeholder="client@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    error={errors.email}
+                    editable={!loading}
+                  />
+                  <Text style={styles.helperText}>
+                    The client will use this email to sign in.
+                  </Text>
+                </View>
+
+                {/* Email Input */}
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    label="Email"
+                    value={formData.email}
+                    onChangeText={(text) => updateField('email', text.trim())}
+                    placeholder="client@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    error={errors.email}
+                    editable={!loading}
+                  />
+                  <Text style={styles.helperText}>
+                    The client will use this email to sign in.
+                  </Text>
                 </View>
 
                 {/* Mobile Input */}
@@ -672,6 +731,22 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                   </Text>
                 </View>
 
+                {/* Trainer Selection - Super Admin Add Mode Only */}
+                {isSuperAdmin() && !isEditMode && (
+                  <View style={styles.inputWrapper}>
+                    <Dropdown
+                      label="Assign to Trainer"
+                      value={selectedTrainerId}
+                      onValueChange={(value) => setSelectedTrainerId(value)}
+                      items={trainers.map(t => ({label: t.name, value: t.uid}))}
+                      placeholder="Leave blank to assign to yourself"
+                      searchable={true}
+                      searchPlaceholder="Search trainer..."
+                      disabled={loading}
+                    />
+                  </View>
+                )}
+
                 {/* Action Buttons */}
                 <View style={styles.buttonRow}>
                   <View style={styles.flex1}>
@@ -757,21 +832,21 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                   Login Credentials
                 </Text>
 
-                <View style={styles.credentialsRow}>
-                  <View style={styles.credentialColumn}>
-                    <Text style={styles.credentialLabel}>Login Code:</Text>
-                    <Text style={styles.credentialValue}>
-                      {createdClientData.loginCode}
-                    </Text>
-                  </View>
-
-                  <View style={styles.credentialColumn}>
-                    <Text style={styles.credentialLabel}>Mobile:</Text>
-                    <Text style={styles.credentialValue}>
-                      {createdClientData.mobile}
-                    </Text>
-                  </View>
+                <View style={styles.tempPasswordRow}>
+                  <Text style={styles.credentialLabel}>Email:</Text>
+                  <Text style={styles.credentialValue}>
+                    {createdClientData.email}
+                  </Text>
                 </View>
+
+                {createdClientData.tempPassword ? (
+                  <View style={styles.tempPasswordRow}>
+                    <Text style={styles.credentialLabel}>Temp Password:</Text>
+                    <Text style={styles.credentialValue}>
+                      {createdClientData.tempPassword}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               {/* BMI Analysis */}
@@ -883,8 +958,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
             {/* Info Message */}
             <View style={styles.infoMessage}>
               <Text style={styles.infoMessageText}>
-                This login code will be used for client authentication in the
-                system.
+                Share this temporary password with your client. They will be asked to set a new password on first login.
               </Text>
             </View>
 
@@ -1058,13 +1132,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
-  credentialsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  credentialColumn: {
-    flex: 1,
+  tempPasswordRow: {
+    marginTop: 12,
   },
   credentialLabel: {
     fontSize: FONT_SIZES.xs,

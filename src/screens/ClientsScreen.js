@@ -87,7 +87,7 @@ const ClientCard = ({client, onPress}) => {
 };
 
 const ClientsScreen = ({navigation, route}) => {
-  const {user, isSuperAdmin} = useAuth();
+  const {user, userProfile, isSuperAdmin} = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   // Get initial filter values from navigation params or use defaults
   const [filterStatus, setFilterStatus] = useState(
@@ -127,7 +127,6 @@ const ClientsScreen = ({navigation, route}) => {
     }
   }, [isSuperAdmin]);
 
-  // Load clients from Firebase
   const loadClients = useCallback(async () => {
     try {
       setLoading(true);
@@ -143,10 +142,6 @@ const ClientsScreen = ({navigation, route}) => {
       if (result.success) {
         setClients(result.clients);
         setFilteredClients(result.clients);
-
-        // Background task: Check and update status for active/paused clients
-        // This runs after clients are displayed, so it doesn't block UI
-        checkClientStatuses(result.clients);
       } else {
         console.error('Failed to load clients:', result.error);
       }
@@ -154,41 +149,6 @@ const ClientsScreen = ({navigation, route}) => {
       console.error('Load clients error:', error);
     } finally {
       setLoading(false);
-    }
-  }, [isSuperAdmin, user?.uid, checkClientStatuses]);
-
-  // Background task to check and update client statuses
-  const checkClientStatuses = useCallback(async (clientsList) => {
-    try {
-      let statusUpdated = false;
-
-      // Check each active or paused client
-      for (const client of clientsList) {
-        if (client.status === 'active' || client.status === 'paused') {
-          const result = await ClientService.checkAndUpdateClientStatus(client.id);
-          if (result.success && result.updated) {
-            statusUpdated = true;
-          }
-        }
-      }
-
-      // If any status was updated, silently refresh the list
-      if (statusUpdated) {
-        let result;
-        if (!isSuperAdmin()) {
-          result = await ClientService.getClientsByTrainer(user?.uid);
-        } else {
-          result = await ClientService.getAllClients();
-        }
-
-        if (result.success) {
-          setClients(result.clients);
-          setFilteredClients(result.clients);
-        }
-      }
-    } catch (error) {
-      console.error('Check client statuses error:', error);
-      // Silently fail - don't show error to user
     }
   }, [isSuperAdmin, user?.uid]);
 
@@ -200,8 +160,8 @@ const ClientsScreen = ({navigation, route}) => {
     if (searchQuery.trim()) {
       filtered = filtered.filter(client =>
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.mobile.includes(searchQuery) ||
-        client.loginCode.toLowerCase().includes(searchQuery.toLowerCase())
+        (client.mobile || '').includes(searchQuery) ||
+        (client.email || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -213,8 +173,10 @@ const ClientsScreen = ({navigation, route}) => {
     // Filter by trainer (only for super admins)
     if (isSuperAdmin()) {
       if (filterTrainer === 'myClients') {
-        // Show only clients created by the current super admin
-        filtered = filtered.filter(client => client.createdBy === user?.uid);
+        const myTrainerProfileId = userProfile?.trainerProfileId;
+        if (myTrainerProfileId) {
+          filtered = filtered.filter(client => client.createdBy === myTrainerProfileId);
+        }
       } else if (filterTrainer !== 'all') {
         // Show clients created by a specific trainer
         filtered = filtered.filter(client => client.createdBy === filterTrainer);
@@ -223,7 +185,7 @@ const ClientsScreen = ({navigation, route}) => {
     }
 
     setFilteredClients(filtered);
-  }, [clients, searchQuery, filterStatus, filterTrainer, isSuperAdmin, user?.uid]);
+  }, [clients, searchQuery, filterStatus, filterTrainer, isSuperAdmin, userProfile?.trainerProfileId]);
 
   // Handle refresh
   const onRefresh = async () => {

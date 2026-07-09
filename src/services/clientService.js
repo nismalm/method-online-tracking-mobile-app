@@ -1,834 +1,186 @@
-import firestore, {getFirestore} from '@react-native-firebase/firestore';
+import {apiClient, extractError} from './apiClient';
 import {getCompleteBMIAnalysis} from '../utils/bmiCalculator';
-import * as DayCalculator from '../utils/dayCalculator';
-import * as PackageService from './packageService';
+import {
+  GENDER_TO_API,
+  BLOOD_TO_API,
+  MODE_TO_API,
+  STATUS_TO_API,
+  ddmmyyyyToIso,
+  normalizeClient,
+} from './mappers';
 
-/**
- * Client Service - Manages all client lifecycle operations
- *
- * STATE TRANSITION MATRIX (STRICT VALIDATION RULES):
- *
- * Operation    | From Status           | To Status  | Allowed?
- * -------------|----------------------|------------|----------
- * PAUSE        | active               | paused     | ✅ YES
- * PAUSE        | paused               | -          | ❌ NO (already paused)
- * PAUSE        | completed            | -          | ❌ NO (cannot pause completed)
- * PAUSE        | stopped              | -          | ❌ NO (cannot pause stopped)
- *
- * RESUME       | paused               | active     | ✅ YES (extends endDate)
- * RESUME       | active               | -          | ❌ NO (already active)
- * RESUME       | completed            | -          | ❌ NO (renew instead)
- * RESUME       | stopped              | -          | ❌ NO (renew instead)
- *
- * STOP         | active               | stopped    | ✅ YES
- * STOP         | paused               | stopped    | ✅ YES (closes open pause)
- * STOP         | completed            | -          | ❌ NO (already finished)
- * STOP         | stopped              | -          | ❌ NO (already stopped)
- *
- * RENEW        | completed            | active     | ✅ YES (fresh start)
- * RENEW        | stopped              | active     | ✅ YES (fresh start)
- * RENEW        | active               | -          | ❌ NO (stop first)
- * RENEW        | paused               | -          | ❌ NO (resume/stop first)
- *
- * AUTO-COMPLETE| active (Day >= Max)  | completed  | ✅ YES (automatic)
- * AUTO-COMPLETE| paused               | -          | ❌ NO (paused don't progress)
- *
- * BUSINESS RULES:
- * 1. Only ACTIVE clients progress through days
- * 2. PAUSED clients freeze on their current day (no progression)
- * 3. RESUME extends endDate by the number of paused days
- * 4. STOP on paused client closes the open pause entry
- * 5. RENEW clears all history and starts fresh
- * 6. COMPLETED/STOPPED clients cannot be paused or resumed
- */
-
-/**
- * Generate unique login code for client
- * @returns {string} Login code in format: METHOD{6-digit-number}
- */
-export const generateLoginCode = () => {
-  const randomDigits = Math.floor(100000 + Math.random() * 900000);
-  return `METHOD${randomDigits}`;
-};
-
-/**
- * Create a new client
- * @param {Object} clientData - Client details
- * @param {string} createdByUsername - Username of creator
- * @param {string|null} customStartDate - Optional custom start date
- * @returns {Promise<Object>} Result with clientId and login code
- */
-export const createClient = async (clientData, createdByUsername, customStartDate = null) => {
+export const createClient = async (clientData, customStartDate = null, trainerId = null) => {
   try {
-    // Validate required fields
-    if (!clientData.name || !clientData.mobile || !clientData.age ||
-        !clientData.gender || !clientData.bloodGroup || !clientData.height ||
-        !clientData.startingWeight || !clientData.package || !clientData.trainingMode) {
-      throw new Error('Missing required fields');
-    }
+    const {
+      name, email, mobile, age, gender, bloodGroup,
+      height, startingWeight, package: packageDuration, trainingMode,
+    } = clientData;
 
-    const loginCode = generateLoginCode();
-    const packageDuration = parseInt(clientData.package, 10);
-
-    // Start date (Day 1)
-    const startDate = customStartDate || DayCalculator.formatDate(new Date());
-
-    // Calculate end date (start + package - 1)
-    const endDate = DayCalculator.calculateEndDate(startDate, packageDuration);
-
-    // Calculate BMI analysis for display only (not stored in DB)
-    const weight = parseFloat(clientData.startingWeight);
-    const height = parseFloat(clientData.height);
-    const age = parseInt(clientData.age, 10);
-    const gender = clientData.gender.trim();
-
-    const bmiAnalysis = getCompleteBMIAnalysis(weight, height, gender, age);
-
-    const clientDoc = {
-      name: clientData.name.trim(),
-      mobile: clientData.mobile.trim(),
-      age: age,
-      gender: gender,
-      bloodGroup: clientData.bloodGroup.trim(),
-      height: height,
-      startingWeight: weight,
-      package: packageDuration,
-      trainingMode: clientData.trainingMode.trim(),
-      loginCode: loginCode,
-      status: 'active',
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      createdBy: createdByUsername,
-      startDate: startDate,
-      endDate: endDate,
-      // Lifecycle tracking
-      pauseHistory: [],
-      renewalHistory: [],
-      stoppedAt: null,
-      stoppedReason: null,
+    const body = {
+      name: name.trim(),
+      email: email.trim(),
+      phone: mobile.trim(),
+      age: Number(age),
+      gender: GENDER_TO_API[gender] || gender,
+      bloodGroup: BLOOD_TO_API[bloodGroup] || bloodGroup,
+      height: Number(height),
+      startingWeight: Number(startingWeight),
+      trainingMode: MODE_TO_API[trainingMode] || trainingMode,
+      packageDays: Number(packageDuration),
+      startDate: ddmmyyyyToIso(customStartDate),
+      ...(trainerId && {trainerId}),
     };
 
-    // Add to clients collection
-    const docRef = await getFirestore().collection('clients').add(clientDoc);
-    const clientId = docRef.id;
+    const {data} = await apiClient.post('/clients', body);
 
-    // Create package document for this client
-    // Note: Dates are stored in client document only (single source of truth)
-    const packageResult = await PackageService.createPackage({
-      clientId: clientId,
-      clientName: clientDoc.name,
-      packageDays: packageDuration,
-      trainingMode: clientDoc.trainingMode,
-    });
-
-    if (!packageResult.success) {
-      console.error('Package creation failed:', packageResult.error);
-      // Don't fail client creation if package creation fails
-      // But log it for debugging
-    }
-
-    // Update client with currentPackageId
-    if (packageResult.success) {
-      await getFirestore().collection('clients').doc(clientId).update({
-        currentPackageId: packageResult.packageId,
-      });
-    }
+    const weight = parseFloat(startingWeight);
+    const heightVal = parseFloat(height);
+    const ageVal = parseInt(age, 10);
+    const bmiAnalysis = getCompleteBMIAnalysis(weight, heightVal, gender, ageVal);
 
     return {
       success: true,
-      clientId: clientId,
-      loginCode: loginCode,
-      bmiAnalysis: bmiAnalysis,
-      message: 'Client created successfully',
+      clientId: data.id,
+      tempPassword: data.credentials?.tempPassword || data.tempPassword || '',
+      bmiAnalysis,
     };
-  } catch (error) {
-    console.error('Create client error:', error);
-    return {success: false, error: error.message};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
   }
 };
 
-/**
- * Get all clients
- * @returns {Promise<Object>} Result with clients array
- */
 export const getAllClients = async () => {
   try {
-    const snapshot = await getFirestore()
-      .collection('clients')
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    const clients = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
+    const {data} = await apiClient.get('/clients');
+    const clients = (Array.isArray(data) ? data : []).map(normalizeClient);
     return {success: true, clients};
-  } catch (error) {
-    console.error('Get clients error:', error);
-    return {success: false, error: error.message};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
   }
 };
 
-/**
- * Get client by ID
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result with client data
- */
-export const getClientById = async (clientId) => {
-  try {
-    const doc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (doc.exists) {
-      return {success: true, client: {id: doc.id, ...doc.data()}};
-    } else {
-      return {success: false, error: 'Client not found'};
-    }
-  } catch (error) {
-    console.error('Get client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Update client
- * Note: Dates are managed only in clients collection (single source of truth)
- * Package collection is not updated - it only stores package metadata and stats
- * @param {string} clientId - Client ID
- * @param {Object} updateData - Data to update
- * @returns {Promise<Object>} Result
- */
-export const updateClient = async (clientId, updateData) => {
-  try {
-    await getFirestore().collection('clients').doc(clientId).update(updateData);
-    return {success: true};
-  } catch (error) {
-    console.error('Update client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Update client status
- * WARNING: This function bypasses business logic validations
- * Use specific functions instead: pauseClient, resumeClient, stopClient, renewClient
- * This should only be used for system operations, not user actions
- * @param {string} clientId - Client ID
- * @param {string} status - New status
- * @returns {Promise<Object>} Result
- */
-export const updateClientStatus = async (clientId, status) => {
-  try {
-    console.warn('Direct status update bypassing validations:', clientId, status);
-    console.warn('Consider using: pauseClient, resumeClient, stopClient, or renewClient instead');
-
-    await getFirestore().collection('clients').doc(clientId).update({
-      status: status,
-    });
-    return {success: true};
-  } catch (error) {
-    console.error('Update client status error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Pause client - Only active clients can be paused
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result
- */
-export const pauseClient = async (clientId) => {
-  try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-
-    // Strict validation: ONLY active clients can be paused
-    // Completed/stopped/paused clients cannot be paused
-    if (clientData.status !== 'active') {
-      const statusMessages = {
-        'paused': 'Client is already paused',
-        'completed': 'Cannot pause a completed client. Please renew first.',
-        'stopped': 'Cannot pause a stopped client. Please renew first.',
-      };
-      const message = statusMessages[clientData.status] || 'Only active clients can be paused';
-      return {success: false, error: message};
-    }
-
-    const pauseHistory = clientData.pauseHistory || [];
-
-    // Defensive check: Ensure no open pause entry exists (shouldn't happen if status is active)
-    const hasOpenPause = pauseHistory.some(p => p.resumedAt === null);
-    if (hasOpenPause) {
-      console.error('Data integrity error: Active client has open pause entry', clientId);
-      return {success: false, error: 'Data integrity error. Please contact support.'};
-    }
-
-    // Create pause entry with current timestamp
-    // pausedDays will be calculated dynamically or set on resume
-    const pauseEntry = {
-      pausedAt: firestore.Timestamp.now(),
-      resumedAt: null,
-    };
-
-    // Add to history array
-    pauseHistory.push(pauseEntry);
-
-    // State transition: active → paused
-    // Clear stopped fields (paused is not stopped)
-    await getFirestore().collection('clients').doc(clientId).update({
-      status: 'paused',
-      pauseHistory: pauseHistory,
-      stoppedAt: null,
-      stoppedReason: null,
-    });
-
-    return {success: true, message: 'Client paused successfully'};
-  } catch (error) {
-    console.error('Pause client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Resume client - Only paused clients can be resumed
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result
- */
-export const resumeClient = async (clientId) => {
-  try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-
-    // Strict validation: ONLY paused clients can be resumed
-    // Active/completed/stopped clients cannot be resumed
-    if (clientData.status !== 'paused') {
-      const statusMessages = {
-        'active': 'Client is already active',
-        'completed': 'Cannot resume a completed client. Please renew first.',
-        'stopped': 'Cannot resume a stopped client. Please renew first.',
-      };
-      const message = statusMessages[clientData.status] || 'Only paused clients can be resumed';
-      return {success: false, error: message};
-    }
-
-    const pauseHistory = clientData.pauseHistory || [];
-
-    if (pauseHistory.length === 0) {
-      console.error('Data integrity error: Paused client has no pause history', clientId);
-      return {success: false, error: 'Data integrity error. Please contact support.'};
-    }
-
-    // Get the last pause entry
-    const lastPauseIndex = pauseHistory.length - 1;
-    const lastPause = pauseHistory[lastPauseIndex];
-
-    // Defensive check: Ensure the last pause entry is actually open
-    if (lastPause.resumedAt !== null) {
-      console.error('Data integrity error: Paused client has no open pause entry', clientId);
-      return {success: false, error: 'Data integrity error. Please contact support.'};
-    }
-
-    // Calculate paused days for this pause cycle
-    const pausedDays = DayCalculator.calculatePausedDays(lastPause.pausedAt, firestore.Timestamp.now());
-
-    // Update the last pause entry
-    lastPause.resumedAt = firestore.Timestamp.now();
-    lastPause.pausedDays = pausedDays;
-
-    // Calculate new end date by extending with paused days
-    // Parse current end date and add the paused days
-    const currentEndDate = DayCalculator.parseDate(clientData.endDate);
-    if (currentEndDate && pausedDays > 0) {
-      const newEndDate = DayCalculator.addDays(currentEndDate, pausedDays);
-      const newEndDateString = DayCalculator.formatDate(newEndDate);
-
-      // State transition: paused → active
-      // Update endDate to reflect the extension due to pause
-      await getFirestore().collection('clients').doc(clientId).update({
-        status: 'active',
-        pauseHistory: pauseHistory,
-        endDate: newEndDateString, // Extend end date by paused days
-        stoppedAt: null,
-        stoppedReason: null,
-      });
-    } else {
-      // If no paused days or invalid end date, just update status
-      await getFirestore().collection('clients').doc(clientId).update({
-        status: 'active',
-        pauseHistory: pauseHistory,
-        stoppedAt: null,
-        stoppedReason: null,
-      });
-    }
-
-    return {success: true};
-  } catch (error) {
-    console.error('Resume client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Renew client package - Only completed or stopped clients can be renewed
- * @param {string} clientId - Client ID
- * @param {number} newPackage - New package duration
- * @returns {Promise<Object>} Result
- */
-export const renewClient = async (clientId, newPackage) => {
-  try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-
-    // Strict validation: ONLY completed or stopped clients can be renewed
-    // Active/paused clients cannot be renewed (stop them first if needed)
-    if (clientData.status !== 'completed' && clientData.status !== 'stopped') {
-      const statusMessages = {
-        'active': 'Cannot renew an active client. Please stop or wait for completion first.',
-        'paused': 'Cannot renew a paused client. Please resume and complete or stop first.',
-      };
-      const message = statusMessages[clientData.status] || 'Only completed or stopped clients can be renewed';
-      return {success: false, error: message};
-    }
-
-    // Validate new package duration
-    if (!newPackage || newPackage <= 0) {
-      return {success: false, error: 'Invalid package duration'};
-    }
-
-    // Calculate new dates
-    const newStartDate = DayCalculator.formatDate(new Date());
-    const newEndDate = DayCalculator.calculateEndDate(newStartDate, newPackage);
-
-    // Create new package document
-    // Note: Dates are stored in client document only (single source of truth)
-    const packageResult = await PackageService.createPackage({
-      clientId: clientId,
-      clientName: clientData.name,
-      packageDays: newPackage,
-      trainingMode: clientData.trainingMode,
-    });
-
-    if (!packageResult.success) {
-      return {success: false, error: 'Failed to create new package'};
-    }
-
-    // Snapshot old package with dates before archiving (if not already snapshotted)
-    const packageHistory = clientData.packageHistory || [];
-    if (clientData.currentPackageId) {
-      // Get old package data
-      const oldPackage = await PackageService.getPackageById(clientData.currentPackageId);
-
-      if (oldPackage.success) {
-        // Only snapshot dates if package doesn't already have them
-        if (!oldPackage.package.startDate) {
-          await PackageService.updatePackage(clientData.currentPackageId, {
-            // Snapshot dates and pause history from client for archived package display
-            startDate: clientData.startDate,
-            endDate: clientData.endDate,
-            pauseHistory: clientData.pauseHistory || [],
-            status: clientData.status,
-          });
-        }
-
-        // Archive in packageHistory
-        packageHistory.push({
-          packageId: clientData.currentPackageId,
-          startDate: clientData.startDate,
-          endDate: clientData.endDate,
-          status: clientData.status,
-          completionRate: oldPackage.package.completionRate || 0,
-        });
-      }
-    }
-
-    // State transition: stopped/completed → active
-    // Clear all lifecycle tracking fields for fresh start
-    await getFirestore().collection('clients').doc(clientId).update({
-      currentPackageId: packageResult.packageId,
-      package: newPackage,
-      startDate: newStartDate,
-      endDate: newEndDate,
-      status: 'active',
-      pauseHistory: [], // Reset pause history for new package
-      packageHistory: packageHistory,
-      stoppedAt: null, // Clear stopped fields
-      stoppedReason: null,
-    });
-
-    return {success: true, message: 'Client package renewed successfully'};
-  } catch (error) {
-    console.error('Renew client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Stop client package - Only active or paused clients can be stopped
- * @param {string} clientId - Client ID
- * @param {string} reason - Reason for stopping
- * @returns {Promise<Object>} Result
- */
-export const stopClient = async (clientId, reason) => {
-  try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-
-    // Strict validation: ONLY active or paused clients can be stopped
-    // Completed/stopped clients cannot be stopped again
-    if (clientData.status !== 'active' && clientData.status !== 'paused') {
-      const statusMessages = {
-        'completed': 'Cannot stop a completed client. It has already finished.',
-        'stopped': 'Client is already stopped',
-      };
-      const message = statusMessages[clientData.status] || 'Only active or paused clients can be stopped';
-      return {success: false, error: message};
-    }
-
-    const updateData = {
-      status: 'stopped',
-      stoppedAt: firestore.FieldValue.serverTimestamp(),
-      stoppedReason: reason || '',
-    };
-
-    // If client is currently paused, close the open pause entry
-    if (clientData.status === 'paused') {
-      const pauseHistory = clientData.pauseHistory || [];
-
-      if (pauseHistory.length > 0) {
-        const lastPause = pauseHistory[pauseHistory.length - 1];
-
-        // Close the pause entry if it's still open
-        if (lastPause.resumedAt === null) {
-          const pausedDays = DayCalculator.calculatePausedDays(lastPause.pausedAt, firestore.Timestamp.now());
-          lastPause.resumedAt = firestore.Timestamp.now();
-          lastPause.pausedDays = pausedDays;
-          updateData.pauseHistory = pauseHistory;
-        }
-      }
-    }
-
-    await getFirestore().collection('clients').doc(clientId).update(updateData);
-
-    // Snapshot package with dates for historical reference
-    if (clientData.currentPackageId) {
-      // For stopped packages, endDate should be the actual stop date, not original end date
-      const actualStopDate = DayCalculator.formatDate(new Date());
-
-      await PackageService.updatePackage(clientData.currentPackageId, {
-        stoppedAt: firestore.FieldValue.serverTimestamp(),
-        stoppedReason: reason || '',
-        // Snapshot dates and pause history from client for archived package display
-        startDate: clientData.startDate,
-        endDate: actualStopDate, // Actual stop date, not original end date
-        pauseHistory: updateData.pauseHistory || clientData.pauseHistory || [],
-        status: 'stopped',
-      });
-    }
-
-    return {success: true, message: 'Client package stopped'};
-  } catch (error) {
-    console.error('Stop client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Delete client and all related data (cascade delete)
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result
- */
-export const deleteClient = async (clientId) => {
-  try {
-    // Step 1: Get all packages for this client
-    const packagesResult = await PackageService.getPackagesByClient(clientId);
-
-    if (!packagesResult.success) {
-      console.error('Failed to fetch packages for deletion:', packagesResult.error);
-      return {success: false, error: `Failed to fetch packages: ${packagesResult.error}`};
-    }
-
-    // Step 2: Delete each package (which will also delete all its activities)
-    const packages = packagesResult.packages || [];
-
-    for (const pkg of packages) {
-      const deleteResult = await PackageService.deletePackage(pkg.packageId);
-      if (!deleteResult.success) {
-        console.error(`Failed to delete package ${pkg.packageId}:`, deleteResult.error);
-        // Continue deleting other packages even if one fails
-      }
-    }
-
-    // Step 3: Delete the client document
-    await getFirestore().collection('clients').doc(clientId).delete();
-
-    return {
-      success: true,
-      message: `Client and ${packages.length} package(s) deleted successfully`,
-      packagesDeleted: packages.length,
-    };
-  } catch (error) {
-    console.error('Delete client error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Search clients by name or mobile
- * @param {string} searchQuery - Search term
- * @returns {Promise<Object>} Result with matching clients
- */
-export const searchClients = async (searchQuery) => {
-  try {
-    const snapshot = await getFirestore()
-      .collection('clients')
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    const clients = snapshot.docs
-      .map(doc => ({id: doc.id, ...doc.data()}))
-      .filter(client =>
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.mobile.includes(searchQuery)
-      );
-
-    return {success: true, clients};
-  } catch (error) {
-    console.error('Search clients error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Get clients by status
- * @param {string} status - Client status
- * @returns {Promise<Object>} Result with clients array
- */
-export const getClientsByStatus = async (status) => {
-  try {
-    const snapshot = await getFirestore()
-      .collection('clients')
-      .where('status', '==', status)
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    const clients = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    return {success: true, clients};
-  } catch (error) {
-    console.error('Get clients by status error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Get client counts (total, active, paused, completed, stopped)
- * For trainers: only count their assigned clients
- * For super admins: count all clients
- * @param {string} userId - User ID
- * @param {boolean} isSuperAdmin - Whether user is super admin
- * @returns {Promise<Object>} Result with counts
- */
-export const getClientCounts = async (userId, isSuperAdmin) => {
-  try {
-    let query = getFirestore().collection('clients');
-
-    // If user is a trainer, filter by createdBy field
-    if (!isSuperAdmin) {
-      query = query.where('createdBy', '==', userId);
-    }
-
-    const snapshot = await query.get();
-
-    let totalClients = 0;
-    let activeClients = 0;
-    let pausedClients = 0;
-    let completedClients = 0;
-    let stoppedClients = 0;
-
-    snapshot.docs.forEach(doc => {
-      const client = doc.data();
-      totalClients++;
-
-      if (client.status === 'active') {
-        activeClients++;
-      } else if (client.status === 'paused') {
-        pausedClients++;
-      } else if (client.status === 'completed') {
-        completedClients++;
-      } else if (client.status === 'stopped') {
-        stoppedClients++;
-      }
-    });
-
-    return {
-      success: true,
-      counts: {
-        total: totalClients,
-        active: activeClients,
-        paused: pausedClients,
-        completed: completedClients,
-        stopped: stoppedClients,
-      },
-    };
-  } catch (error) {
-    console.error('Get client counts error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Check and update client status if package is completed
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result
- */
-export const checkAndUpdateClientStatus = async (clientId) => {
-  try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-
-    // Only check active clients (paused clients don't progress, so can't auto-complete)
-    if (clientData.status !== 'active') {
-      return {success: true, message: 'Status not applicable for update'};
-    }
-
-    // Use day calculator to check if completed
-    const dayAnalysis = DayCalculator.getClientDayAnalysis(clientData);
-
-    // If completed and currently active, update to completed
-    if (dayAnalysis.isCompleted) {
-      await getFirestore().collection('clients').doc(clientId).update({
-        status: 'completed',
-        // Clear stopped fields (completed is different from stopped)
-        stoppedAt: null,
-        stoppedReason: null,
-      });
-
-      // Snapshot package completion with dates for historical reference
-      if (clientData.currentPackageId) {
-        await PackageService.updatePackage(clientData.currentPackageId, {
-          completedAt: firestore.FieldValue.serverTimestamp(),
-          // Snapshot dates and pause history from client for archived package display
-          startDate: clientData.startDate,
-          endDate: clientData.endDate,
-          pauseHistory: clientData.pauseHistory || [],
-          status: 'completed',
-        });
-      }
-
-      return {success: true, message: 'Client marked as completed', updated: true};
-    }
-
-    return {success: true, message: 'No status update needed', updated: false};
-  } catch (error) {
-    console.error('Check client status error:', error);
-    return {success: false, error: error.message};
-  }
-};
-
-/**
- * Get clients by trainer ID
- * @param {string} trainerId - Trainer ID
- * @returns {Promise<Object>} Result with clients array
- */
 export const getClientsByTrainer = async (trainerId) => {
   try {
-    const snapshot = await getFirestore()
-      .collection('clients')
-      .where('createdBy', '==', trainerId)
-      .get();
-
-    // Sort by createdAt in memory (descending - newest first)
-    const clients = snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      .sort((a, b) => {
-        // Handle cases where createdAt might not exist
-        const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return bTime - aTime; // Descending order
-      });
-
+    const {data} = await apiClient.get('/clients', {params: {trainerId}});
+    const clients = (Array.isArray(data) ? data : []).map(normalizeClient);
     return {success: true, clients};
-  } catch (error) {
-    console.error('Get clients by trainer error:', error);
-    return {success: false, error: error.message};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
   }
 };
 
-/**
- * Recalculate and fix endDate for a client based on their pause history
- * This is useful for fixing existing clients whose endDate wasn't updated properly
- * @param {string} clientId - Client ID
- * @returns {Promise<Object>} Result
- */
-export const recalculateClientEndDate = async (clientId) => {
+export const getClientsByStatus = async (statusLower) => {
   try {
-    const clientDoc = await getFirestore().collection('clients').doc(clientId).get();
-
-    if (!clientDoc.exists) {
-      return {success: false, error: 'Client not found'};
-    }
-
-    const clientData = clientDoc.data();
-    const {startDate, package: packageDays, pauseHistory = []} = clientData;
-
-    // Calculate total paused days from pause history
-    const totalPausedDays = DayCalculator.calculateTotalPausedDays(pauseHistory);
-
-    // Calculate correct end date: start + package + pausedDays - 1
-    const correctEndDate = DayCalculator.calculateExpectedEndDate(startDate, packageDays, totalPausedDays);
-
-    // Update the end date if it's different from the stored one
-    if (correctEndDate !== clientData.endDate) {
-      await getFirestore().collection('clients').doc(clientId).update({
-        endDate: correctEndDate,
-      });
-
-      return {
-        success: true,
-        message: 'End date recalculated successfully',
-        oldEndDate: clientData.endDate,
-        newEndDate: correctEndDate,
-        pausedDays: totalPausedDays,
-      };
-    }
-
-    return {
-      success: true,
-      message: 'End date is already correct',
-      endDate: correctEndDate,
-    };
-  } catch (error) {
-    console.error('Recalculate end date error:', error);
-    return {success: false, error: error.message};
+    const apiStatus = STATUS_TO_API[statusLower] || statusLower.toUpperCase();
+    const {data} = await apiClient.get('/clients', {params: {clientStatus: apiStatus}});
+    const clients = (Array.isArray(data) ? data : []).map(normalizeClient);
+    return {success: true, clients};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
   }
+};
+
+export const getClientById = async (clientId) => {
+  try {
+    const {data} = await apiClient.get(`/clients/${clientId}`);
+    return {success: true, client: normalizeClient(data)};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const updateClient = async (clientId, updateData) => {
+  try {
+    const body = {};
+    if (updateData.name !== undefined) {body.name = updateData.name;}
+    if (updateData.email !== undefined) {body.email = updateData.email;}
+    if (updateData.mobile !== undefined) {body.phone = updateData.mobile;}
+    if (updateData.age !== undefined) {body.age = Number(updateData.age);}
+    if (updateData.gender !== undefined) {body.gender = GENDER_TO_API[updateData.gender] || updateData.gender;}
+    if (updateData.bloodGroup !== undefined) {body.bloodGroup = BLOOD_TO_API[updateData.bloodGroup] || updateData.bloodGroup;}
+    if (updateData.height !== undefined) {body.height = Number(updateData.height);}
+    if (updateData.startingWeight !== undefined) {body.startingWeight = Number(updateData.startingWeight);}
+    if (updateData.package !== undefined) {body.packageDays = Number(updateData.package);}
+    if (updateData.trainingMode !== undefined) {body.trainingMode = MODE_TO_API[updateData.trainingMode] || updateData.trainingMode;}
+    if (updateData.startDate !== undefined) {body.startDate = ddmmyyyyToIso(updateData.startDate);}
+
+    await apiClient.patch(`/clients/${clientId}`, body);
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const pauseClient = async (clientId) => {
+  try {
+    await apiClient.patch(`/clients/${clientId}/pause`);
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const resumeClient = async (clientId) => {
+  try {
+    await apiClient.patch(`/clients/${clientId}/resume`);
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const stopClient = async (clientId, reason) => {
+  try {
+    await apiClient.patch(`/clients/${clientId}/stop`, {reason: reason?.trim() || 'Stopped'});
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const renewClient = async (clientId, newPackage) => {
+  try {
+    await apiClient.patch(`/clients/${clientId}/renew`, {newPackageDays: newPackage});
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const deleteClient = async (clientId) => {
+  try {
+    await apiClient.delete(`/clients/${clientId}`);
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const getClientCounts = async () => {
+  try {
+    const {data} = await apiClient.get('/clients/counts');
+    return {success: true, counts: data};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const searchClients = async (query) => {
+  try {
+    const {data} = await apiClient.get('/clients', {
+      params: {search: encodeURIComponent(query)},
+    });
+    const clients = (Array.isArray(data) ? data : []).map(normalizeClient);
+    return {success: true, clients};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
+export const checkAndUpdateClientStatus = async (_clientId) => {
+  return {success: true, updated: false};
+};
+
+export const recalculateClientEndDate = async (_clientId) => {
+  return {success: true};
 };
