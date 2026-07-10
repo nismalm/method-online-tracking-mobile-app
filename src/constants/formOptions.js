@@ -58,7 +58,11 @@ export const VALIDATION_RULES = {
     required: true,
   },
   mobile: {
-    pattern: /^\+?[1-9]\d{6,14}$/,
+    pattern: /^\+[1-9]\d{9,14}$/,
+    required: true,
+  },
+  email: {
+    pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     required: true,
   },
   age: {

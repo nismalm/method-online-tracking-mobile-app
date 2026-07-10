@@ -2,7 +2,6 @@ import UIKit
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import Firebase
-import FirebaseAuth
 import FirebaseMessaging
 import UserNotifications
 

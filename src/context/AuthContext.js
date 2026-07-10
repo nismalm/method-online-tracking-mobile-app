@@ -1,17 +1,26 @@
 import React, {createContext, useState, useEffect, useContext, useCallback, useRef} from 'react';
-import {Alert} from 'react-native';
+import {Alert, AppState} from 'react-native';
 import * as AuthService from '../services/authService';
-import firestore, {getFirestore} from '@react-native-firebase/firestore';
+import * as TokenStorage from '../services/tokenStorage';
+import {apiClient, setOnUnauthenticatedHandler} from '../services/apiClient';
+import {PROFILE_POLL_INTERVAL_MS} from '../config/env';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) {throw new Error('useAuth must be used within AuthProvider');}
+  return ctx;
 };
+
+const normalizeProfile = (raw) => ({
+  ...raw,
+  uid: raw.id,
+  mobile: raw.phone,
+  role: raw.role === 'SUPER_ADMIN' ? 'SuperAdmin' : 'Trainer',
+  status: (raw.status || '').toLowerCase(),
+  trainerProfileId: raw.trainerProfileId ?? null,
+});
 
 export const AuthProvider = ({children}) => {
   const [user, setUser] = useState(null);
@@ -19,202 +28,173 @@ export const AuthProvider = ({children}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Use ref to track previous status to avoid infinite loop
   const previousStatusRef = useRef(null);
-  // Track if an alert is currently showing to prevent alert stacking
   const isAlertShowingRef = useRef(false);
+  const pollRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
 
-  // Fetch user profile from Firestore
-  const fetchUserProfile = async (uid) => {
-    try {
-      const userDoc = await getFirestore().collection('users').doc(uid).get();
-
-      if (userDoc.exists) {
-        const profile = userDoc.data();
-        setUserProfile(profile);
-        return profile;
-      } else {
-        console.error('User profile not found in Firestore');
-        setError('User profile not found');
-        return null;
-      }
-    } catch (err) {
-      console.error('Error fetching user profile:', err);
-      setError(err.message);
-      return null;
-    }
-  };
-
-  // Listen to authentication state changes
-  useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (authUser) => {
-      if (authUser) {
-        setUser(authUser);
-        await fetchUserProfile(authUser.uid);
-      } else {
+  const showAccountDeactivated = useCallback(() => {
+    if (isAlertShowingRef.current) {return;}
+    isAlertShowingRef.current = true;
+    Alert.alert(
+      'Account Deactivated',
+      'Your account has been deactivated by the administrator. Please contact support for assistance.',
+      [{text: 'OK', onPress: async () => {
+        isAlertShowingRef.current = false;
+        await AuthService.signOut();
         setUser(null);
         setUserProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+        previousStatusRef.current = null;
+      }}],
+      {onDismiss: () => {isAlertShowingRef.current = false;}},
+    );
   }, []);
 
-  // Listen to real-time profile updates from Firestore
-  useEffect(() => {
-    if (!user?.uid) {return;}
+  const showAccountDeleted = useCallback(() => {
+    if (isAlertShowingRef.current) {return;}
+    isAlertShowingRef.current = true;
+    Alert.alert(
+      'Account Deleted',
+      'Your account has been deleted. Please contact administrator for assistance.',
+      [{text: 'OK', onPress: async () => {
+        isAlertShowingRef.current = false;
+        await AuthService.signOut();
+        setUser(null);
+        setUserProfile(null);
+        previousStatusRef.current = null;
+      }}],
+      {onDismiss: () => {isAlertShowingRef.current = false;}},
+    );
+  }, []);
 
-    const unsubscribe = getFirestore()
-      .collection('users')
-      .doc(user.uid)
-      .onSnapshot(
-        (doc) => {
-          // Document doesn't exist (user was deleted from Firestore)
-          if (!doc.exists) {
-            console.log('User profile deleted. Logging out...');
-
-            // Prevent alert stacking
-            if (isAlertShowingRef.current) {return;}
-            isAlertShowingRef.current = true;
-
-            Alert.alert(
-              'Account Deleted',
-              'Your account has been deleted. Please contact administrator for assistance.',
-              [
-                {
-                  text: 'OK',
-                  onPress: async () => {
-                    isAlertShowingRef.current = false;
-                    await AuthService.signOut();
-                    setUser(null);
-                    setUserProfile(null);
-                    previousStatusRef.current = null;
-                  },
-                },
-              ],
-              { onDismiss: () => { isAlertShowingRef.current = false; } }
-            );
-            return;
-          }
-
-          const profile = doc.data();
-
-          // Additional safety check
-          if (!profile) {
-            console.log('Profile data is null. Logging out...');
-
-            // Prevent alert stacking
-            if (isAlertShowingRef.current) {return;}
-            isAlertShowingRef.current = true;
-
-            Alert.alert(
-              'Account Error',
-              'Unable to load account data. Please contact administrator.',
-              [
-                {
-                  text: 'OK',
-                  onPress: async () => {
-                    isAlertShowingRef.current = false;
-                    await AuthService.signOut();
-                    setUser(null);
-                    setUserProfile(null);
-                    previousStatusRef.current = null;
-                  },
-                },
-              ],
-              { onDismiss: () => { isAlertShowingRef.current = false; } }
-            );
-            return;
-          }
-
-          // Check if status CHANGED from active to inactive
-          // Only show alert if status actually changed (not on initial load)
-          if (
-            previousStatusRef.current === 'active' &&
-            profile.status !== 'active' &&
-            profile.role !== 'SuperAdmin'
-          ) {
-            console.log('User status changed to inactive. Logging out...');
-
-            // Prevent alert stacking
-            if (isAlertShowingRef.current) {return;}
-            isAlertShowingRef.current = true;
-
-            Alert.alert(
-              'Account Deactivated',
-              'Your account has been deactivated by the administrator. Please contact support for assistance.',
-              [
-                {
-                  text: 'OK',
-                  onPress: async () => {
-                    isAlertShowingRef.current = false;
-                    await AuthService.signOut();
-                    setUser(null);
-                    setUserProfile(null);
-                    previousStatusRef.current = null;
-                  },
-                },
-              ],
-              { onDismiss: () => { isAlertShowingRef.current = false; } }
-            );
-            return;
-          }
-
-          // Update previous status for next comparison (using ref to avoid re-render)
-          previousStatusRef.current = profile.status;
-          setUserProfile(profile);
-        },
-        (err) => {
-          console.error('Error listening to user profile changes:', err);
-        }
-      );
-
-    return unsubscribe;
-  }, [user?.uid]); // FIXED: Removed previousStatus from dependencies
-
-  // Refresh user profile manually
-  const refreshUserProfile = useCallback(async () => {
-    if (user?.uid) {
-      await fetchUserProfile(user.uid);
-    }
-  }, [user?.uid]);
-
-  // Check if user is SuperAdmin (memoized to prevent re-renders)
-  const isSuperAdmin = useCallback(() => {
-    return userProfile?.role === 'SuperAdmin';
-  }, [userProfile?.role]);
-
-  // Check if user is Trainer (memoized to prevent re-renders)
-  const isTrainer = useCallback(() => {
-    return userProfile?.role === 'Trainer';
-  }, [userProfile?.role]);
-
-  // Sign out (memoized)
-  const signOut = useCallback(async () => {
+  const hydrate = useCallback(async () => {
     try {
-      await AuthService.signOut();
-      setUser(null);
-      setUserProfile(null);
-      setError(null);
-      previousStatusRef.current = null;
-      return {success: true};
-    } catch (err) {
-      console.error('Sign out error:', err);
-      return {success: false, error: err.message};
-    }
-  }, []);
+      const {data} = await apiClient.get('/users/me');
+      const profile = normalizeProfile(data);
 
-  const value = {
-    user,
-    userProfile,
-    loading,
-    error,
-    isSuperAdmin,
-    isTrainer,
-    refreshUserProfile,
-    signOut,
+      if (
+        previousStatusRef.current === 'active' &&
+        profile.status !== 'active' &&
+        profile.role !== 'SuperAdmin'
+      ) {
+        showAccountDeactivated();
+        return;
+      }
+      previousStatusRef.current = profile.status;
+      setUser(profile);
+      setUserProfile(profile);
+
+      // Upload FCM token best-effort after hydration
+      uploadFcmToken();
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        showAccountDeleted();
+      }
+      // 401 or any network/server error: interceptor already cleared tokens and user state.
+      // Stay silent - App.js will render LoginScreen since user is null.
+    }
+  }, [showAccountDeactivated, showAccountDeleted]);
+
+  const uploadFcmToken = async () => {
+    try {
+      const messaging = require('@react-native-firebase/messaging').default;
+      const token = await messaging().getToken();
+      if (token) {
+        await apiClient.patch('/auth/fcm-token', {fcmToken: token}).catch(() => {});
+      }
+    } catch {
+      // FCM not available or permission denied, ignore
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    setOnUnauthenticatedHandler(() => {
+      setUser(null);
+      setUserProfile(null);
+      previousStatusRef.current = null;
+    });
+
+    (async () => {
+      try {
+        const tokens = await TokenStorage.loadTokens();
+        if (tokens?.accessToken) {
+          await hydrate();
+        }
+      } catch {
+        // Keychain unavailable or token corrupt - proceed to login screen
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!user?.uid) {return undefined;}
+
+    const start = () => {
+      if (pollRef.current) {return;}
+      pollRef.current = setInterval(() => {hydrate();}, PROFILE_POLL_INTERVAL_MS);
+    };
+    const stop = () => {
+      if (pollRef.current) {clearInterval(pollRef.current); pollRef.current = null;}
+    };
+
+    start();
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appStateRef.current.match(/inactive|background/) && next === 'active') {
+        hydrate();
+        start();
+      } else if (next.match(/inactive|background/)) {
+        stop();
+      }
+      appStateRef.current = next;
+    });
+
+    return () => {stop(); sub.remove();};
+  }, [user?.uid, hydrate]);
+
+  // Also refresh FCM token on token refresh
+  useEffect(() => {
+    let unsubscribe;
+    try {
+      const messaging = require('@react-native-firebase/messaging').default;
+      unsubscribe = messaging().onTokenRefresh((token) => {
+        if (token && user?.uid) {
+          apiClient.patch('/auth/fcm-token', {fcmToken: token}).catch(() => {});
+        }
+      });
+    } catch {
+      // messaging not available
+    }
+    return () => {
+      if (unsubscribe) {unsubscribe();}
+    };
+  }, [user?.uid]);
+
+  const signOut = useCallback(async () => {
+    await AuthService.signOut();
+    setUser(null);
+    setUserProfile(null);
+    setError(null);
+    previousStatusRef.current = null;
+    return {success: true};
+  }, []);
+
+  const isSuperAdmin = useCallback(() => userProfile?.role === 'SuperAdmin', [userProfile?.role]);
+  const isTrainer = useCallback(() => userProfile?.role === 'Trainer', [userProfile?.role]);
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      userProfile,
+      loading,
+      error,
+      isSuperAdmin,
+      isTrainer,
+      signOut,
+      refreshUserProfile: hydrate,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

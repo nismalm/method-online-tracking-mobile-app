@@ -21,6 +21,7 @@ import CalendarIcon from '../../assets/icons/calendarIcon';
 import SearchIcon from '../../assets/icons/searchIcon';
 import UserSearchIcon from '../../assets/icons/userSearchIcon';
 import * as AuthService from '../services/authService';
+import {getClientsByTrainer, reassignClientTrainer} from '../services/clientService';
 import {useAuth} from '../context/AuthContext';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 
@@ -59,7 +60,7 @@ const TrainerCard = React.memo(({trainer, onPress}) => {
         <View style={styles.trainerDate}>
           <CalendarIcon width={16} height={16} stroke={COLORS.brandTextSecondary} />
           <Text style={styles.trainerDateText}>
-            Added {new Date(trainer.createdAt.toDate()).toLocaleDateString()}
+            Added {new Date(trainer.createdAt).toLocaleDateString()}
           </Text>
         </View>
       )}
@@ -68,7 +69,7 @@ const TrainerCard = React.memo(({trainer, onPress}) => {
 });
 
 const TrainersScreen = () => {
-  const {isSuperAdmin} = useAuth();
+  const {user, isSuperAdmin} = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [trainers, setTrainers] = useState([]);
   const [filteredTrainers, setFilteredTrainers] = useState([]);
@@ -181,36 +182,71 @@ const TrainersScreen = () => {
     fetchTrainers(); // Refresh the trainer list
   }, [fetchTrainers]);
 
+  const performDelete = useCallback(async (trainer) => {
+    const result = await AuthService.deleteTrainer(trainer.uid);
+    if (result.success) {
+      Alert.alert('Success', 'Trainer deleted successfully');
+      fetchTrainers();
+      return;
+    }
+
+    const hasActiveClients = result.error && result.error.toLowerCase().includes('active client');
+    if (!hasActiveClients) {
+      Alert.alert('Error', result.error || 'Failed to delete trainer');
+      return;
+    }
+
+    // Auto-reassign trainer's active clients to the acting super admin, then retry delete.
+    const adminTrainerProfileId = user?.trainerProfileId;
+    if (!isSuperAdmin() || !adminTrainerProfileId) {
+      Alert.alert('Error', result.error || 'Cannot delete trainer with active clients');
+      return;
+    }
+
+    const clientsResult = await getClientsByTrainer(trainer.uid);
+    if (!clientsResult.success) {
+      Alert.alert('Error', clientsResult.error || 'Failed to load trainer\'s clients');
+      return;
+    }
+
+    const activeClients = clientsResult.clients.filter(
+      c => c.status === 'active' || c.status === 'paused'
+    );
+
+    for (const c of activeClients) {
+      const r = await reassignClientTrainer(c.id, adminTrainerProfileId);
+      if (!r.success) {
+        Alert.alert('Error', r.error || `Failed to reassign client ${c.name}`);
+        return;
+      }
+    }
+
+    const retry = await AuthService.deleteTrainer(trainer.uid);
+    if (retry.success) {
+      Alert.alert(
+        'Success',
+        `Trainer deleted. ${activeClients.length} client${activeClients.length !== 1 ? 's' : ''} reassigned to you.`
+      );
+      fetchTrainers();
+    } else {
+      Alert.alert('Error', retry.error || 'Failed to delete trainer');
+    }
+  }, [fetchTrainers, isSuperAdmin, user?.trainerProfileId]);
+
   const handleDeleteTrainer = useCallback((trainer) => {
     Alert.alert(
       'Delete Trainer',
-      `Are you sure you want to delete ${trainer.name}?\n\nThis action cannot be undone.`,
+      `Are you sure you want to delete ${trainer.name}?\n\nAny active clients will be reassigned to you. This action cannot be undone.`,
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await AuthService.deleteTrainer(trainer.uid);
-              if (result.success) {
-                Alert.alert('Success', 'Trainer deleted successfully');
-                fetchTrainers(); // Refresh list
-              } else {
-                Alert.alert('Error', result.error || 'Failed to delete trainer');
-              }
-            } catch (error) {
-              console.error('Delete trainer error:', error);
-              Alert.alert('Error', 'Failed to delete trainer');
-            }
-          },
+          onPress: () => performDelete(trainer),
         },
       ]
     );
-  }, [fetchTrainers]);
+  }, [performDelete]);
 
   if (loading) {
     return (
