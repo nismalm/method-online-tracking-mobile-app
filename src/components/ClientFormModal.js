@@ -207,14 +207,14 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     }
   };
 
-  // Load trainers for super admin add mode
+  // Load trainers for super admin (both add and edit modes)
   useEffect(() => {
-    if (visible && isSuperAdmin() && !isEditMode) {
+    if (visible && isSuperAdmin()) {
       AuthService.getAllTrainers().then(result => {
         if (result.success) {setTrainers(result.trainers);}
       });
     }
-  }, [visible, isSuperAdmin, isEditMode]);
+  }, [visible, isSuperAdmin]);
 
   // Populate form data when editing
   useEffect(() => {
@@ -231,6 +231,9 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
         packageType: String(client.package) || '',
         trainingMode: client.trainingMode || '',
       });
+
+      // Prefill current trainer for super admin edit
+      setSelectedTrainerId(client.createdBy || '');
 
       // Parse and set start date
       if (client.startDate) {
@@ -334,13 +337,31 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
         const result = await ClientService.updateClient(client.id, updateData);
 
-        if (result.success) {
-          Alert.alert('Success', 'Client updated successfully');
-          onClientAdded?.(); // Refresh the list
-          handleClose();
-        } else {
+        if (!result.success) {
           Alert.alert('Error', result.error || 'Failed to update client');
+          return;
         }
+
+        // Super admin: apply trainer reassignment if changed
+        if (isSuperAdmin() && selectedTrainerId && selectedTrainerId !== client.createdBy) {
+          const reassignResult = await ClientService.reassignClientTrainer(
+            client.id,
+            selectedTrainerId
+          );
+          if (!reassignResult.success) {
+            Alert.alert(
+              'Partial Update',
+              reassignResult.error || 'Client updated but trainer reassignment failed'
+            );
+            onClientAdded?.();
+            handleClose();
+            return;
+          }
+        }
+
+        Alert.alert('Success', 'Client updated successfully');
+        onClientAdded?.(); // Refresh the list
+        handleClose();
       } else {
         // Create new client
         const clientData = {
@@ -695,15 +716,26 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                   </Text>
                 </View>
 
-                {/* Trainer Selection - Super Admin Add Mode Only */}
-                {isSuperAdmin() && !isEditMode && (
+                {/* Trainer Selection - Super Admin Only */}
+                {isSuperAdmin() && (
                   <View style={styles.inputWrapper}>
                     <Dropdown
-                      label="Assign to Trainer"
+                      label={isEditMode ? 'Trainer' : 'Assign to Trainer'}
                       value={selectedTrainerId}
                       onValueChange={(value) => setSelectedTrainerId(value)}
-                      items={trainers.map(t => ({label: t.name, value: t.uid}))}
-                      placeholder="Leave blank to assign to yourself"
+                      items={(() => {
+                        const trainerItems = trainers
+                          .filter(t => t.uid !== user?.trainerProfileId)
+                          .map(t => ({label: t.name, value: t.uid}));
+                        if (isEditMode && user?.trainerProfileId) {
+                          return [
+                            {label: 'Me', value: user.trainerProfileId},
+                            ...trainerItems,
+                          ];
+                        }
+                        return trainerItems;
+                      })()}
+                      placeholder={isEditMode ? 'Select a trainer' : 'Leave blank to assign to yourself'}
                       searchable={true}
                       searchPlaceholder="Search trainer..."
                       disabled={loading}

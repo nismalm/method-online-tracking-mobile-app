@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useState, useCallback, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   StyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {TextInput, Button} from '../components';
+import {TextInput, Button, Dropdown} from '../components';
 import Header from '../components/Header';
 import MealCard from '../components/diet/MealCard';
 import SupplementRow from '../components/diet/SupplementRow';
 import GoalNoteItem from '../components/diet/GoalNoteItem';
+import * as ClientService from '../services/clientService';
+import * as DietChartService from '../services/dietChartService';
 import {
   generateId,
   DEFAULT_DAILY_GOALS,
@@ -52,6 +54,80 @@ const DietChartBuilderScreen = ({navigation}) => {
   );
   const [errors, setErrors] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Client mode state
+  const [mode, setMode] = useState('standalone'); // 'standalone' | 'client'
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [existingChartId, setExistingChartId] = useState(null);
+  const [isLoadingChart, setIsLoadingChart] = useState(false);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+
+  // Load clients when user switches to client mode (once)
+  useEffect(() => {
+    if (mode !== 'client' || clientsLoaded) {return;}
+    ClientService.getAllClients().then((res) => {
+      if (res.success) {
+        const reachable = res.clients.filter(
+          (c) => c.status !== 'stopped' && c.status !== 'completed'
+        );
+        setClients(reachable);
+      }
+      setClientsLoaded(true);
+    });
+  }, [mode, clientsLoaded]);
+
+  const resetFormToDefaults = useCallback(() => {
+    setMeals([
+      {
+        id: generateId(),
+        name: DEFAULT_MEAL_NAMES[0],
+        time: '',
+        carbs: [],
+        proteins: [],
+        others: [],
+        notes: '',
+      },
+    ]);
+    setDailyGoals(DEFAULT_DAILY_GOALS.map((text) => ({id: generateId(), text})));
+    setSupplements([]);
+    setShowSupplements(false);
+    setGeneralNotes(DEFAULT_GENERAL_NOTES.map((text) => ({id: generateId(), text})));
+    setErrors({});
+  }, []);
+
+  const handleModeChange = useCallback((nextMode) => {
+    if (nextMode === mode) {return;}
+    setMode(nextMode);
+    if (nextMode === 'standalone') {
+      // Return to standalone: drop client linkage, keep the form intact.
+      setSelectedClientId(null);
+      setExistingChartId(null);
+    }
+  }, [mode]);
+
+  const handleClientSelect = useCallback(async (clientId) => {
+    setSelectedClientId(clientId);
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) {return;}
+
+    setClientName(client.name);
+    setIsLoadingChart(true);
+    const res = await DietChartService.getChartByClient(clientId);
+    if (res.success && res.chart) {
+      const form = DietChartService.fromApiChart(res.chart);
+      setExistingChartId(form.chartId);
+      setClientName(form.clientName);
+      setMeals(form.meals);
+      setDailyGoals(form.dailyGoals);
+      setSupplements(form.supplements);
+      setShowSupplements(form.supplements.length > 0);
+      setGeneralNotes(form.generalNotes);
+    } else {
+      setExistingChartId(null);
+    }
+    setIsLoadingChart(false);
+  }, [clients]);
 
   // Validation
   const validateForm = useCallback(() => {
@@ -203,6 +279,11 @@ const DietChartBuilderScreen = ({navigation}) => {
       return;
     }
 
+    if (mode === 'client' && !selectedClientId) {
+      Alert.alert('Select Client', 'Please select a client first.');
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -211,6 +292,26 @@ const DietChartBuilderScreen = ({navigation}) => {
       const date = `${String(today.getDate()).padStart(2, '0')}-${String(
         today.getMonth() + 1
       ).padStart(2, '0')}-${today.getFullYear().toString().slice(-2)}`;
+
+      // Client mode: persist chart before navigating to preview.
+      if (mode === 'client') {
+        const payload = DietChartService.toApiChart({
+          clientName,
+          meals,
+          dailyGoals,
+          supplements: showSupplements ? supplements : [],
+          generalNotes,
+          clientProfileId: selectedClientId,
+        });
+        const res = existingChartId
+          ? await DietChartService.updateChart(existingChartId, payload)
+          : await DietChartService.createChart(payload);
+        if (!res.success) {
+          Alert.alert('Error', res.error || 'Failed to save diet chart.');
+          return;
+        }
+        if (res.chart?.id) {setExistingChartId(res.chart.id);}
+      }
 
       const dietData = {
         clientName: clientName.trim(),
@@ -221,7 +322,6 @@ const DietChartBuilderScreen = ({navigation}) => {
         generalNotes,
       };
 
-      // Navigate to preview/export screen
       navigation.navigate('DietChartPreview', {dietData});
     } catch (error) {
       console.error('Error generating diet chart:', error);
@@ -229,7 +329,7 @@ const DietChartBuilderScreen = ({navigation}) => {
     } finally {
       setIsGenerating(false);
     }
-  }, [validateForm, clientName, meals, dailyGoals, supplements, generalNotes, showSupplements, navigation]);
+  }, [validateForm, mode, selectedClientId, existingChartId, clientName, meals, dailyGoals, supplements, generalNotes, showSupplements, navigation]);
 
   // Clear All
   const handleClearAll = useCallback(() => {
@@ -243,31 +343,14 @@ const DietChartBuilderScreen = ({navigation}) => {
           style: 'destructive',
           onPress: () => {
             setClientName('');
-            setMeals([
-              {
-                id: generateId(),
-                name: DEFAULT_MEAL_NAMES[0],
-                time: '',
-                carbs: [],
-                proteins: [],
-                others: [],
-                notes: '',
-              },
-            ]);
-            setDailyGoals(
-              DEFAULT_DAILY_GOALS.map((text) => ({id: generateId(), text}))
-            );
-            setSupplements([]);
-            setShowSupplements(false);
-            setGeneralNotes(
-              DEFAULT_GENERAL_NOTES.map((text) => ({id: generateId(), text}))
-            );
-            setErrors({});
+            resetFormToDefaults();
+            setSelectedClientId(null);
+            setExistingChartId(null);
           },
         },
       ]
     );
-  }, []);
+  }, [resetFormToDefaults]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -294,9 +377,54 @@ const DietChartBuilderScreen = ({navigation}) => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          {/* Client Name */}
+          {/* Mode Toggle */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Client Name</Text>
+            <View style={styles.modeToggle}>
+              <TouchableOpacity
+                style={[styles.modeOption, mode === 'standalone' && styles.modeOptionActive]}
+                onPress={() => handleModeChange('standalone')}
+                activeOpacity={0.7}>
+                <Text style={[styles.modeText, mode === 'standalone' && styles.modeTextActive]}>
+                  Standalone
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeOption, mode === 'client' && styles.modeOptionActive]}
+                onPress={() => handleModeChange('client')}
+                activeOpacity={0.7}>
+                <Text style={[styles.modeText, mode === 'client' && styles.modeTextActive]}>
+                  Client
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Client selector (client mode only) */}
+          {mode === 'client' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Select Client</Text>
+              <Dropdown
+                value={selectedClientId}
+                onValueChange={handleClientSelect}
+                items={clients.map((c) => ({label: c.name, value: c.id}))}
+                placeholder={clientsLoaded ? 'Choose a client' : 'Loading clients...'}
+                searchable
+                searchPlaceholder="Search client..."
+              />
+              {isLoadingChart && (
+                <View style={styles.chartLoading}>
+                  <ActivityIndicator size="small" color={COLORS.brandDarkest} />
+                  <Text style={styles.chartLoadingText}>Loading saved chart...</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Recipient / Client Name */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {mode === 'client' ? 'Recipient Name (editable)' : 'Client Name'}
+            </Text>
             <TextInput
               placeholder="Enter client name"
               value={clientName}
@@ -470,6 +598,40 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.gray100,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 4,
+  },
+  modeOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+  },
+  modeOptionActive: {
+    backgroundColor: COLORS.white,
+  },
+  modeText: {
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandTextSecondary,
+  },
+  modeTextActive: {
+    color: COLORS.brandDarkest,
+  },
+  chartLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  chartLoadingText: {
+    marginLeft: 8,
+    fontSize: FONT_SIZES.sm,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,

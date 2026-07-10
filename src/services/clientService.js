@@ -176,6 +176,15 @@ export const searchClients = async (query) => {
   }
 };
 
+export const reassignClientTrainer = async (clientId, newTrainerId) => {
+  try {
+    await apiClient.patch(`/clients/${clientId}`, {trainerId: newTrainerId});
+    return {success: true};
+  } catch (err) {
+    return {success: false, error: extractError(err)};
+  }
+};
+
 export const checkAndUpdateClientStatus = async (_clientId) => {
   return {success: true, updated: false};
 };
