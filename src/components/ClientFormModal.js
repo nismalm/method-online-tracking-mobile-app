@@ -17,6 +17,7 @@ import Share from 'react-native-share';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {TextInput, Button, Dropdown} from '../components';
 import * as ClientService from '../services/clientService';
+import * as ClientIntakeService from '../services/clientIntakeService';
 import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
 import ShareIcon from '../../assets/icons/shareIcon';
@@ -128,9 +129,10 @@ const formatDate = (date) => {
   return `${day}/${month}/${year}`;
 };
 
-const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode = 'add'}) => {
+const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode = 'add', intake = null}) => {
   const {user, isSuperAdmin, refreshUserProfile} = useAuth();
   const isEditMode = mode === 'edit' && client !== null;
+  const isIntakeMode = mode === 'intake' && intake !== null;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -247,6 +249,28 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
       }
     }
   }, [isEditMode, client]);
+
+  // Populate form data when reviewing an intake
+  useEffect(() => {
+    if (isIntakeMode && intake) {
+      setFormData({
+        name: intake.name || '',
+        email: intake.email || '',
+        mobile: intake.mobile || '',
+        age: intake.age !== undefined && intake.age !== null ? String(intake.age) : '',
+        gender: intake.gender || '',
+        bloodGroup: intake.bloodGroup || '',
+        height: intake.height !== undefined && intake.height !== null ? String(intake.height) : '',
+        startingWeight: intake.weight !== undefined && intake.weight !== null ? String(intake.weight) : '',
+        packageType: '',
+        trainingMode: '',
+      });
+      const today = new Date();
+      setStartDate(today);
+      setTempDate(today);
+      setSelectedTrainerId('');
+    }
+  }, [isIntakeMode, intake]);
 
   // Update form field
   const updateField = useCallback((fieldName, value) => {
@@ -375,6 +399,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           startingWeight: formData.startingWeight.trim(),
           package: formData.packageType.trim(),
           trainingMode: formData.trainingMode.trim(),
+          ...(isIntakeMode && intake?.timezone ? { timezone: intake.timezone } : {}),
         };
 
         // Validate all fields are present
@@ -395,6 +420,9 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
         );
 
         if (result.success) {
+          if (isIntakeMode && intake?.id) {
+            await ClientIntakeService.dismissIntake(intake.id);
+          }
           handleClientCreated(clientData.name, clientData.email, clientData.mobile, result.tempPassword, result.bmiAnalysis);
           if (!resolvedTrainerId && isSuperAdmin()) {
             refreshUserProfile();
@@ -410,7 +438,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
     } finally {
       setLoading(false);
     }
-  }, [formData, startDate, user, onClientAdded, validateAllFields, isEditMode, client, handleClose, handleClientCreated, isSuperAdmin, refreshUserProfile, selectedTrainerId]);
+  }, [formData, startDate, user, onClientAdded, validateAllFields, isEditMode, isIntakeMode, intake, client, handleClose, handleClientCreated, isSuperAdmin, refreshUserProfile, selectedTrainerId]);
 
   // Reset form
   const resetForm = useCallback(() => {
@@ -469,8 +497,8 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
 
   // Check if form is valid
   const isFormValid = useMemo(() => {
-    return Object.values(formData).every(value => value.trim() !== '');
-  }, [formData]);
+    return Object.values(formData).every(value => value.trim() !== '') && startDate instanceof Date;
+  }, [formData, startDate]);
 
   return (
     <>
@@ -488,7 +516,7 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
               {/* Header */}
               <View style={styles.header}>
                 <Text style={styles.headerTitle}>
-                  {isEditMode ? 'Edit Client' : 'Add New Client'}
+                  {isEditMode ? 'Edit Client' : isIntakeMode ? 'Review Intake' : 'Add New Client'}
                 </Text>
                 <TouchableOpacity
                   onPress={handleClose}
@@ -551,31 +579,14 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                   </Text>
                 </View>
 
-                {/* Package Dropdown */}
-                <View style={styles.inputWrapper}>
-                  <Dropdown
-                    label="Package"
-                    value={formData.packageType}
-                    onValueChange={(value) => updateField('packageType', value)}
-                    items={PACKAGE_OPTIONS}
-                    placeholder="Select package duration"
-                    error={errors.packageType}
-                    disabled={loading}
-                  />
-                </View>
-
-                {/* Training Mode Dropdown */}
-                <View style={styles.inputWrapper}>
-                  <Dropdown
-                    label="Training Mode"
-                    value={formData.trainingMode}
-                    onValueChange={(value) => updateField('trainingMode', value)}
-                    items={TRAINING_MODE_OPTIONS}
-                    placeholder="Select training mode"
-                    error={errors.trainingMode}
-                    disabled={loading}
-                  />
-                </View>
+                {/* Intake divider */}
+                {isIntakeMode && (
+                  <View style={styles.intakeDivider}>
+                    <View style={styles.intakeDividerLine} />
+                    <Text style={styles.intakeDividerText}>Complete the setup</Text>
+                    <View style={styles.intakeDividerLine} />
+                  </View>
+                )}
 
                 {/* Blood Group Dropdown */}
                 <View style={styles.inputWrapper}>
@@ -632,12 +643,8 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                       errors.startDate && styles.datePickerButtonError,
                       loading && styles.datePickerButtonDisabled,
                     ]}>
-                    <Text
-                      style={[
-                        styles.datePickerText,
-                        !startDate && styles.datePickerTextPlaceholder,
-                      ]}>
-                      {startDate ? formatDate(startDate) : 'Select start date'}
+                    <Text style={styles.datePickerText}>
+                      {formatDate(startDate)}
                     </Text>
                   </TouchableOpacity>
                   {errors.startDate ? (
@@ -654,7 +661,6 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                         mode="date"
                         display="inline"
                         onChange={handleDateChange}
-                        maximumDate={new Date()}
                         minimumDate={new Date(2020, 0, 1)}
                         themeVariant="light"
                       />
@@ -716,6 +722,32 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
                   </Text>
                 </View>
 
+                {/* Package Dropdown */}
+                <View style={styles.inputWrapper}>
+                  <Dropdown
+                    label="Package"
+                    value={formData.packageType}
+                    onValueChange={(value) => updateField('packageType', value)}
+                    items={PACKAGE_OPTIONS}
+                    placeholder="Select package duration"
+                    error={errors.packageType}
+                    disabled={loading}
+                  />
+                </View>
+
+                {/* Training Mode Dropdown */}
+                <View style={styles.inputWrapper}>
+                  <Dropdown
+                    label="Training Mode"
+                    value={formData.trainingMode}
+                    onValueChange={(value) => updateField('trainingMode', value)}
+                    items={TRAINING_MODE_OPTIONS}
+                    placeholder="Select training mode"
+                    error={errors.trainingMode}
+                    disabled={loading}
+                  />
+                </View>
+
                 {/* Trainer Selection - Super Admin Only */}
                 {isSuperAdmin() && (
                   <View style={styles.inputWrapper}>
@@ -775,7 +807,6 @@ const ClientFormModal = ({visible, onClose, onClientAdded, client = null, mode =
           mode="date"
           display="default"
           onChange={handleDateChange}
-          maximumDate={new Date()}
           minimumDate={new Date(2020, 0, 1)}
         />
       )}
@@ -1009,6 +1040,25 @@ const styles = StyleSheet.create({
   },
   inputWrapperLarge: {
     marginBottom: 24,
+  },
+  intakeDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  intakeDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.brandBorder,
+  },
+  intakeDividerText: {
+    marginHorizontal: 12,
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandTextSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   helperText: {
     fontSize: FONT_SIZES.xs,

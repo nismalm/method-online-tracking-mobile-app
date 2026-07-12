@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import ClientOnboardingSection from '../components/ClientOnboardingSection';
 import {TextInput, Button} from '../components';
 import * as AuthService from '../services/authService';
 import {useAuth} from '../context/AuthContext';
@@ -258,7 +259,7 @@ const ChangePasswordModal = ({visible, onClose}) => {
 };
 
 const ProfileScreen = () => {
-  const {userProfile, signOut} = useAuth();
+  const {userProfile, signOut, isSuperAdmin} = useAuth();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleSignOut = async () => {
@@ -309,6 +310,16 @@ const ProfileScreen = () => {
                   </Text>
                 </View>
               </View>
+            </>
+          )}
+
+          {/* Client Onboarding (Super Admin Only) */}
+          {isSuperAdmin() && (
+            <>
+              <Text style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
+                CLIENT ONBOARDING
+              </Text>
+              <ClientOnboardingSection />
             </>
           )}
 

@@ -8,7 +8,9 @@ import TextInput from '../components/TextInput';
 import FloatingActionButton from '../components/FloatingActionButton';
 import Dropdown from '../components/Dropdown';
 import ClientFormModal from '../components/ClientFormModal';
+import PendingIntakesRow from '../components/PendingIntakesRow';
 import * as ClientService from '../services/clientService';
+import * as ClientIntakeService from '../services/clientIntakeService';
 import * as AuthService from '../services/authService';
 import * as DayCalculator from '../utils/dayCalculator';
 import {STATUS_COLORS} from '../constants/formOptions';
@@ -102,6 +104,9 @@ const ClientsScreen = ({navigation, route}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState('add');
+  const [activeIntake, setActiveIntake] = useState(null);
+  const [pendingIntakes, setPendingIntakes] = useState([]);
 
   const statusOptions = [
     {label: 'All Status', value: 'all'},
@@ -110,6 +115,17 @@ const ClientsScreen = ({navigation, route}) => {
     {label: 'Completed', value: 'completed'},
     {label: 'Stopped', value: 'stopped'},
   ];
+
+  const loadPendingIntakes = useCallback(async () => {
+    if (!isSuperAdmin()) {
+      setPendingIntakes([]);
+      return;
+    }
+    const result = await ClientIntakeService.getPendingIntakes();
+    if (result.success) {
+      setPendingIntakes(result.intakes);
+    }
+  }, [isSuperAdmin]);
 
   // Load trainers list (only for super admins)
   const loadTrainers = useCallback(async () => {
@@ -190,18 +206,33 @@ const ClientsScreen = ({navigation, route}) => {
   // Handle refresh
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadClients();
+    await Promise.all([loadClients(), loadPendingIntakes()]);
     setRefreshing(false);
   };
 
   // Handle client added or updated
   const handleClientAdded = () => {
     loadClients();
+    loadPendingIntakes();
   };
 
   // Handle add client
   const handleAddClient = () => {
+    setModalMode('add');
+    setActiveIntake(null);
     setShowModal(true);
+  };
+
+  const handleReviewIntake = (intake) => {
+    setModalMode('intake');
+    setActiveIntake(intake);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setActiveIntake(null);
+    setModalMode('add');
   };
 
   // Load clients and trainers when screen comes into focus
@@ -210,7 +241,8 @@ const ClientsScreen = ({navigation, route}) => {
     useCallback(() => {
       loadClients();
       loadTrainers();
-    }, [loadClients, loadTrainers])
+      loadPendingIntakes();
+    }, [loadClients, loadTrainers, loadPendingIntakes])
   );
 
   // Update filters when navigation params change
@@ -294,15 +326,24 @@ const ClientsScreen = ({navigation, route}) => {
           </View>
         )}
 
-        {/* Client List */}
-        <Text style={styles.listTitle}>
-          All Clients ({filteredClients.length})
-        </Text>
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }>
+          {/* Pending intakes (super admin only) */}
+          {isSuperAdmin() && (
+            <PendingIntakesRow
+              intakes={pendingIntakes}
+              onSelect={handleReviewIntake}
+              onDismiss={(id) => setPendingIntakes(prev => prev.filter(i => i.id !== id))}
+            />
+          )}
+
+          {/* Client List */}
+          <Text style={styles.listTitle}>
+            All Clients ({filteredClients.length})
+          </Text>
           {loading ? (
             <View style={styles.loadingState}>
               <Text style={styles.loadingText}>Loading clients...</Text>
@@ -334,12 +375,13 @@ const ClientsScreen = ({navigation, route}) => {
         backgroundColor={COLORS.brandPrimary}
       />
 
-      {/* Client Form Modal (Add/Edit) */}
+      {/* Client Form Modal (Add/Edit/Intake) */}
       <ClientFormModal
         visible={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal}
         onClientAdded={handleClientAdded}
-        mode="add"
+        mode={modalMode}
+        intake={activeIntake}
       />
     </SafeAreaView>
   );

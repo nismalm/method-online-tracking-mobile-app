@@ -13,7 +13,7 @@ export const createClient = async (clientData, customStartDate = null, trainerId
   try {
     const {
       name, email, mobile, age, gender, bloodGroup,
-      height, startingWeight, package: packageDuration, trainingMode,
+      height, startingWeight, package: packageDuration, trainingMode, timezone,
     } = clientData;
 
     const body = {
@@ -29,6 +29,7 @@ export const createClient = async (clientData, customStartDate = null, trainerId
       packageDays: Number(packageDuration),
       startDate: ddmmyyyyToIso(customStartDate),
       ...(trainerId && {trainerId}),
+      ...(timezone && {timezone}),
     };
 
     const {data} = await apiClient.post('/clients', body);

@@ -46,6 +46,11 @@ target 'MethodOnlineTracker' do
         if config.name == 'Release'
           config.build_settings['LIBRARY_SEARCH_PATHS'] = '$(inherited) $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)'
         end
+
+        # Fix fmt consteval incompatibility with newer clang (iOS 26 SDK)
+        if target.name == 'fmt'
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        end
       end
     end
   end
