@@ -1,6 +1,7 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, ActivityIndicator, RefreshControl} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useFocusEffect} from '@react-navigation/native';
 import ClientFormModal from '../components/ClientFormModal';
 import {StopModal, RenewalModal} from '../components';
 import * as ClientService from '../services/clientService';
@@ -88,9 +89,10 @@ const ClientDetailScreen = ({route, navigation}) => {
         setPackages(result.options);
         // Set current package as default
         if (client.currentPackageId) {
-          setSelectedPackageId(client.currentPackageId);
+          const currentIdStr = String(client.currentPackageId);
+          setSelectedPackageId(currentIdStr);
           const currentPkg = result.options.find(
-            opt => opt.value === client.currentPackageId
+            opt => opt.value === currentIdStr
           );
           if (currentPkg) {
             setSelectedPackageData(currentPkg.packageData);
@@ -162,6 +164,18 @@ const ClientDetailScreen = ({route, navigation}) => {
   useEffect(() => {
     loadClient();
   }, [loadClient]);
+
+  // Clear activity cache when screen regains focus so data stays fresh
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      setPackageCache({});
+    }, [])
+  );
 
   // Load packages when client is loaded or tab switches to activities
   useEffect(() => {
@@ -635,10 +649,12 @@ const ClientDetailScreen = ({route, navigation}) => {
       );
     }
 
-    const completedCount = activities.filter(
-      a => a.status === 'completed' || a.status === 'partial'
-    ).length;
+    const completedCount = activities.filter(a => a.status === 'completed').length;
+    const partialCount = activities.filter(a => a.status === 'partial').length;
     const totalDays = selectedPackageData ? selectedPackageData.packageDays : 0;
+    const submittedCount = completedCount + partialCount;
+    const pendingCount = Math.max(0, totalDays - submittedCount);
+    const completionRate = totalDays > 0 ? Math.round((submittedCount / totalDays) * 100) : 0;
 
     return (
       <View style={styles.activitiesContainer}>
@@ -657,12 +673,62 @@ const ClientDetailScreen = ({route, navigation}) => {
             <Text style={styles.loadingText}>Loading activities...</Text>
           </View>
         ) : (
-          <ClientActivityCalendar
-            client={client}
-            packageData={selectedPackageData}
-            activities={activities}
-            onDayPress={handleDayPress}
-          />
+          <>
+            <ClientActivityCalendar
+              client={client}
+              packageData={selectedPackageData}
+              activities={activities}
+              onDayPress={handleDayPress}
+            />
+
+            {/* Progress Stats */}
+            {totalDays > 0 && (
+              <View style={styles.progressStatsCard}>
+                <View style={styles.progressStatsHeader}>
+                  <Text style={styles.progressStatsTitle}>Package Progress</Text>
+                  <Text style={styles.progressStatsRate}>{completionRate}%</Text>
+                </View>
+                <View style={styles.progressBarOuter}>
+                  <View
+                    style={[
+                      styles.progressBarInner,
+                      {
+                        width: `${completionRate}%`,
+                        backgroundColor:
+                          completionRate === 100
+                            ? COLORS.green500
+                            : completionRate >= 50
+                            ? COLORS.brandPrimary
+                            : '#FFB800',
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statDot, {backgroundColor: COLORS.green500}]} />
+                    <Text style={styles.statValue}>{completedCount}</Text>
+                    <Text style={styles.statLabel}>Completed</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statDot, {backgroundColor: '#FFB800'}]} />
+                    <Text style={styles.statValue}>{partialCount}</Text>
+                    <Text style={styles.statLabel}>Partial</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statDot, {backgroundColor: COLORS.brandBorder}]} />
+                    <Text style={styles.statValue}>{pendingCount}</Text>
+                    <Text style={styles.statLabel}>Pending</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statDot, {backgroundColor: COLORS.gray400}]} />
+                    <Text style={styles.statValue}>{totalDays}</Text>
+                    <Text style={styles.statLabel}>Total Days</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </>
         )}
       </View>
     );
@@ -939,6 +1005,67 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  progressStatsCard: {
+    marginTop: 16,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.brandBorder,
+    padding: 16,
+  },
+  progressStatsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  progressStatsTitle: {
+    fontSize: FONT_SIZES.base,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.brandDarkest,
+  },
+  progressStatsRate: {
+    fontSize: FONT_SIZES.xl,
+    fontFamily: FONTS.bold,
+    color: COLORS.brandDarkest,
+  },
+  progressBarOuter: {
+    height: 8,
+    backgroundColor: COLORS.gray100,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  progressBarInner: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: FONT_SIZES.lg,
+    fontFamily: FONTS.bold,
+    color: COLORS.brandDarkest,
+  },
+  statLabel: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.regular,
+    color: COLORS.brandTextSecondary,
+    textAlign: 'center',
+    marginTop: 2,
   },
 });
 

@@ -18,13 +18,17 @@ export const STATUS_FROM_API = {
   ACTIVE: 'active', PAUSED: 'paused', COMPLETED: 'completed', STOPPED: 'stopped',
 };
 
+// Backend stores calendar dates (startDate, endDate, activity date) as UTC
+// midnight (@db.Date semantics). Reading with local getters would shift the
+// day by +/-1 for users east/west of UTC. Always use UTC getters so a stored
+// "2026-07-15" surfaces as 15/07/2026 in every timezone.
 export const isoToDDMMYYYY = (iso) => {
   if (!iso) {return '';}
   const d = new Date(iso);
   if (isNaN(d.getTime())) {return '';}
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
   return `${day}/${month}/${year}`;
 };
 

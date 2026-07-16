@@ -3,18 +3,18 @@ import * as DayCalculator from '../utils/dayCalculator';
 import {MODE_FROM_API, STATUS_FROM_API, isoToDDMMYYYY, wrapIsoAsTimestamp} from './mappers';
 
 const normalizePackage = (raw) => ({
-  id: raw.packageId,
-  packageId: raw.packageId,
-  clientId: raw.clientId,
-  packageDays: raw.packageDays,
-  trainingMode: MODE_FROM_API[raw.trainingMode] || raw.trainingMode,
+  // raw.id is the UUID primary key of ClientPackage (used for activity fetching)
+  // raw.packageId is an optional FK to a Package template (often null — do not use for lookups)
+  id: raw.id,
+  packageId: raw.id,
+  clientId: raw.clientProfileId || raw.clientId,
+  packageDays: raw.durationDays ?? raw.packageDays,
   startDate: isoToDDMMYYYY(raw.startDate),
   endDate: isoToDDMMYYYY(raw.endDate),
   status: STATUS_FROM_API[raw.status] || 'active',
   completionRate: raw.completionRate || 0,
   totalDaysCompleted: raw.totalDaysCompleted || 0,
   createdAt: wrapIsoAsTimestamp(raw.createdAt),
-  completedAt: wrapIsoAsTimestamp(raw.completedAt),
   stoppedAt: wrapIsoAsTimestamp(raw.stoppedAt),
   stoppedReason: raw.stoppedReason || null,
   pauseHistory: (raw.pauseHistory || []).map((p) => ({
@@ -24,15 +24,60 @@ const normalizePackage = (raw) => ({
   })),
 });
 
-const normalizeActivity = (raw) => ({
-  id: raw.id,
-  date: isoToDDMMYYYY(raw.date),
-  dayNumber: raw.dayNumber,
-  status: (raw.status || 'PENDING').toLowerCase(),
-  responses: raw.responses || [],
-  progress: raw.progress || null,
-  submittedAt: wrapIsoAsTimestamp(raw.submittedAt),
-});
+const normalizeActivity = (raw) => {
+  // Backend stores individual check-in fields, not a responses array.
+  // Build a structured responses list from the actual fields.
+  const responses = [
+    {
+      question: 'Workout',
+      answer: raw.workoutDone ? 'Done' : 'Not done',
+      completed: !!raw.workoutDone,
+      percentage: raw.workoutDone ? 100 : 0,
+    },
+    {
+      question: 'Diet Followed',
+      answer: raw.dietFollowed ? 'Done' : 'Not done',
+      completed: !!raw.dietFollowed,
+      percentage: raw.dietFollowed ? 100 : 0,
+    },
+    {
+      question: 'Supplements',
+      answer: raw.supplementsTaken ? 'Done' : 'Not done',
+      completed: !!raw.supplementsTaken,
+      percentage: raw.supplementsTaken ? 100 : 0,
+    },
+    {
+      question: 'Water',
+      answer: `${raw.waterLitres ?? 0} L`,
+      completed: (raw.waterLitres ?? 0) >= 2,
+      percentage: Math.min(100, Math.round(((raw.waterLitres ?? 0) / 2) * 100)),
+    },
+    {
+      question: 'Steps',
+      answer: (raw.steps ?? 0).toLocaleString(),
+      completed: (raw.steps ?? 0) >= 5000,
+      percentage: Math.min(100, Math.round(((raw.steps ?? 0) / 5000) * 100)),
+    },
+    {
+      question: 'Sleep',
+      answer: `${raw.sleepHours ?? 0} hrs`,
+      completed: (raw.sleepHours ?? 0) >= 7,
+      percentage: Math.min(100, Math.round(((raw.sleepHours ?? 0) / 7) * 100)),
+    },
+  ];
+
+  return {
+    id: raw.id,
+    date: isoToDDMMYYYY(raw.date),
+    dayNumber: raw.dayNumber,
+    status: (raw.status || 'PENDING').toLowerCase(),
+    responses,
+    progress: {percentage: raw.score ?? 0},
+    score: raw.score ?? 0,
+    notes: raw.notes || null,
+    submittedAt: wrapIsoAsTimestamp(raw.updatedAt || raw.createdAt),
+  };
+};
 
 export const getPackagesByClient = async (clientId) => {
   try {
@@ -64,7 +109,7 @@ export const getPackageOptions = async (clientId, currentPackageId = null) => {
     }
 
     const options = result.packages.map((pkg, index) => {
-      const isCurrent = pkg.packageId === currentPackageId;
+      const isCurrent = currentPackageId != null && String(pkg.packageId) === String(currentPackageId);
 
       let label;
       if (isCurrent) {
@@ -96,7 +141,7 @@ export const getPackageOptions = async (clientId, currentPackageId = null) => {
 
       return {
         label,
-        value: pkg.packageId,
+        value: String(pkg.packageId),
         packageData: pkg,
       };
     });

@@ -32,6 +32,7 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
 
     // Convert DD/MM/YYYY to YYYY-MM-DD for calendar library
     const convertDateFormat = dateString => {
+      if (!dateString) {return null;}
       const parts = dateString.split('/');
       if (parts.length !== 3) {
         return null;
@@ -40,6 +41,15 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
       const month = parts[1].padStart(2, '0');
       const year = parts[2];
       return `${year}-${month}-${day}`;
+    };
+
+    // Format a local Date as YYYY-MM-DD (never use toISOString: it shifts to UTC
+    // and produces the wrong calendar day for users west of UTC).
+    const formatYmdLocal = date => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     };
 
     const startCalendarDate = convertDateFormat(startDate);
@@ -87,13 +97,18 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
       return false;
     };
 
-    // Iterate through package date range
-    const start = new Date(startCalendarDate);
-    const end = new Date(endCalendarDate);
+    // Iterate through package date range using local Dates. Building from
+    // (year, month, day) keeps everything in local time so incrementing
+    // .setDate() advances by real calendar days, and formatYmdLocal produces
+    // the same YYYY-MM-DD the calendar library uses for its cell keys.
+    const [sy, sm, sd] = startCalendarDate.split('-').map((n) => parseInt(n, 10));
+    const [ey, em, ed] = endCalendarDate.split('-').map((n) => parseInt(n, 10));
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
     let current = new Date(start);
 
     while (current <= end) {
-      const dateString = current.toISOString().split('T')[0];
+      const dateString = formatYmdLocal(current);
       const activity = activityMap[dateString];
       const isPaused = isDatePaused(dateString);
 
@@ -204,10 +219,15 @@ const ClientActivityCalendar = ({client, packageData, activities = [], onDayPres
       return minDate;
     }
 
-    // For current package, try to use today's date if within range
+    // For current package, try to use today's date if within range.
+    // Use local getters, not toISOString(), so the user's local calendar day
+    // (not the UTC day) is highlighted.
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-    
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
     // Check if today is within the package date range
     if (minDate && maxDate && todayStr >= minDate && todayStr <= maxDate) {
       return todayStr;

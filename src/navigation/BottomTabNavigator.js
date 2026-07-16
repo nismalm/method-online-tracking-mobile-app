@@ -7,12 +7,14 @@ import {COLORS, FONTS, BORDER_RADIUS} from '../constants/theme';
 // Import custom icons
 import HomeIcon from '../../assets/icons/homeIcon';
 import ClientIcon from '../../assets/icons/clientsIcon';
+import CalendarIcon from '../../assets/icons/calendarIcon';
 import TrainerIcon from '../../assets/icons/trainerIcon';
 import ProfileIcon from '../../assets/icons/profileIcon';
 
 // Import screens and navigators
 import HomeStackNavigator from './HomeStackNavigator';
 import ClientsStackNavigator from './ClientsStackNavigator';
+import ProgressStackNavigator from './ProgressStackNavigator';
 import TrainersScreen from '../screens/TrainersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -27,6 +29,8 @@ const getTabIcon = (routeName, focused) => {
       return <HomeIcon width={iconSize} height={iconSize} stroke={iconColor} fill={iconColor} />;
     case 'Clients':
       return <ClientIcon width={iconSize} height={iconSize} stroke={iconColor} fill={iconColor} />;
+    case 'Progress':
+      return <CalendarIcon width={iconSize} height={iconSize} stroke={iconColor} />;
     case 'Trainers':
       return <TrainerIcon width={iconSize} height={iconSize} fill={iconColor} />;
     case 'Profile':
@@ -95,6 +99,8 @@ const BottomTabNavigator = () => {
       <Tab.Screen name="Home" component={HomeStackNavigator} />
 
       <Tab.Screen name="Clients" component={ClientsStackNavigator} />
+
+      <Tab.Screen name="Progress" component={ProgressStackNavigator} />
 
       {/* Trainers tab - Only visible to SuperAdmin */}
       {showTrainersTab && (
