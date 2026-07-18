@@ -18,6 +18,7 @@ import * as PackageService from '../services/packageService';
 import {COLORS, FONTS, FONT_SIZES, BORDER_RADIUS} from '../constants/theme';
 import ChevronRightIcon from '../../assets/icons/chevronRightIcon';
 import SearchIcon from '../../assets/icons/searchIcon';
+import FeeDueBottomSheet from '../components/FeeDueBottomSheet';
 
 const getDateForOffset = (daysOffset) => {
   const d = new Date();
@@ -38,6 +39,14 @@ const formatDisplay = (date) =>
 
 const FILTERS = ['All', 'Done', 'Pending'];
 
+const getTomorrowDDMMYYYY = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return formatDDMMYYYY(d);
+};
+
+const TOMORROW_STR = getTomorrowDDMMYYYY();
+
 const DailyProgressScreen = ({navigation}) => {
   const {user, isSuperAdmin} = useAuth();
   const [clientsProgress, setClientsProgress] = useState([]);
@@ -46,6 +55,7 @@ const DailyProgressScreen = ({navigation}) => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [daysOffset, setDaysOffset] = useState(0);
+  const [feeDueVisible, setFeeDueVisible] = useState(false);
 
   const loadProgress = useCallback(async () => {
     try {
@@ -138,6 +148,7 @@ const DailyProgressScreen = ({navigation}) => {
 
   const doneCount = clientsProgress.filter(c => c.status === 'done').length;
   const pendingCount = clientsProgress.filter(c => c.status === 'pending').length;
+  const feeDueClients = clientsProgress.filter(({client}) => client.endDate === TOMORROW_STR);
 
   const filteredClients = clientsProgress.filter(item => {
     const matchesFilter =
@@ -214,6 +225,15 @@ const DailyProgressScreen = ({navigation}) => {
               <Text style={[styles.summaryCount, {color: COLORS.gray600}]}>{pendingCount}</Text>
               <Text style={[styles.summaryLabel, {color: COLORS.gray600}]}>Pending</Text>
             </View>
+            {feeDueClients.length > 0 && (
+              <TouchableOpacity
+                style={styles.feeDueTrigger}
+                onPress={() => setFeeDueVisible(true)}
+                activeOpacity={0.7}>
+                <View style={styles.feeDueDot} />
+                <Text style={styles.feeDueTriggerText}>{feeDueClients.length} fee due</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -319,6 +339,16 @@ const DailyProgressScreen = ({navigation}) => {
           )}
         </ScrollView>
       </View>
+
+      <FeeDueBottomSheet
+        visible={feeDueVisible}
+        onClose={() => setFeeDueVisible(false)}
+        clients={feeDueClients}
+        onClientPress={client => {
+          setFeeDueVisible(false);
+          navigation.navigate('ClientDetail', {clientId: client.id});
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -521,6 +551,29 @@ const styles = StyleSheet.create({
   clientStatusText: {
     fontSize: FONT_SIZES.sm,
     fontFamily: FONTS.medium,
+  },
+  feeDueTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 5,
+    alignSelf: 'center',
+  },
+  feeDueDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#f97316',
+  },
+  feeDueTriggerText: {
+    fontSize: FONT_SIZES.xs,
+    fontFamily: FONTS.semiBold,
+    color: '#c2410c',
   },
   percentageContainer: {
     marginRight: 10,
